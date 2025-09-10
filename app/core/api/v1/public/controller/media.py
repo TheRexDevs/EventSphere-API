@@ -1,12 +1,12 @@
 """
-Media controller for managing file uploads and media library within folios.
+Media controller for managing file uploads and media library within events.
 
 This module handles all media-related operations including upload, deletion,
-gallery management, and search with proper folio ownership validation.
+gallery management, and search with proper event ownership validation.
 
 Author: Emmanuel Olowu
 Link: https://github.com/zeddyemy
-Package: Folio Builder
+Package: Event Builder
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ import uuid
 
 from app.extensions import db
 from app.logging import log_error, log_event
-from app.models import Media, Folio
+from app.models import Media, Event
 from app.schemas.media import (
     UploadMediaRequest,
     DeleteMediaRequest,
@@ -36,7 +36,7 @@ from app.utils.media_service import MediaService
 
 
 class MediaController:
-    """Controller for media management operations within folios."""
+    """Controller for media management operations within events."""
 
     @staticmethod
     def _validate_media_uuid(media_id: str) -> Optional[uuid.UUID]:
@@ -47,10 +47,10 @@ class MediaController:
             return None
 
     @staticmethod
-    def _validate_folio_uuid(folio_id: str) -> Optional[uuid.UUID]:
-        """Validate and convert folio ID string to UUID."""
+    def _validate_event_uuid(event_id: str) -> Optional[uuid.UUID]:
+        """Validate and convert event ID string to UUID."""
         try:
-            return uuid.UUID(folio_id)
+            return uuid.UUID(event_id)
         except (ValueError, TypeError):
             return None
 
@@ -63,51 +63,51 @@ class MediaController:
             return None
 
     @staticmethod
-    def _get_user_folio(folio_id: str, user_id: str) -> Tuple[Optional[Response], Optional[Folio]]:
-        """Get folio by ID and verify ownership. Returns (error_response, folio) tuple."""
+    def _get_user_event(event_id: str, user_id: str) -> Tuple[Optional[Response], Optional[Event]]:
+        """Get event by ID and verify ownership. Returns (error_response, event) tuple."""
         # Validate UUID formats
-        folio_uuid = MediaController._validate_folio_uuid(folio_id)
-        if not folio_uuid:
-            return error_response("invalid folio ID format", 400), None
+        event_uuid = MediaController._validate_event_uuid(event_id)
+        if not event_uuid:
+            return error_response("invalid event ID format", 400), None
 
         user_uuid = MediaController._validate_user_uuid(user_id)
         if not user_uuid:
             return error_response("invalid user ID format", 401), None
 
-        # Get folio and verify ownership
-        folio = Folio.query.filter_by(id=folio_uuid, owner_id=user_uuid).first()
-        if not folio:
-            return error_response("folio not found or access denied", 404), None
+        # Get event and verify ownership
+        event = Event.query.filter_by(id=event_uuid, owner_id=user_uuid).first()
+        if not event:
+            return error_response("event not found or access denied", 404), None
 
-        return None, folio
+        return None, event
 
     @staticmethod
-    def _get_folio_media(folio_id: str, media_id: str, user_id: str) -> Tuple[Optional[Response], Optional[Media], Optional[Folio]]:
-        """Get media by ID, verify folio ownership. Returns (error_response, media, folio) tuple."""
-        # First validate folio ownership
-        error_resp, folio = MediaController._get_user_folio(folio_id, user_id)
+    def _get_event_media(event_id: str, media_id: str, user_id: str) -> Tuple[Optional[Response], Optional[Media], Optional[Event]]:
+        """Get media by ID, verify event ownership. Returns (error_response, media, event) tuple."""
+        # First validate event ownership
+        error_resp, event = MediaController._get_user_event(event_id, user_id)
         if error_resp:
             return error_resp, None, None
 
         # Validate media UUID
         media_uuid = MediaController._validate_media_uuid(media_id)
         if not media_uuid:
-            return error_response("invalid media ID format", 400), None, folio
+            return error_response("invalid media ID format", 400), None, event
 
-        # Get media within the folio
-        if folio is None:
-            return error_response("folio access denied", 403), None, None
+        # Get media within the event
+        if event is None:
+            return error_response("event access denied", 403), None, None
 
-        media = Media.query.filter_by(id=media_uuid, folio_id=folio.id).first()
+        media = Media.query.filter_by(id=media_uuid, event_id=event.id).first()
         if not media:
-            return error_response("media not found", 404), None, folio
+            return error_response("media not found", 404), None, event
 
-        return None, media, folio
+        return None, media, event
 
     @staticmethod
     @jwt_required()
-    def upload_media(folio_id: str) -> Response:
-        """Upload media files to a folio."""
+    def upload_media(event_id: str) -> Response:
+        """Upload media files to a event."""
         current_user_id = get_jwt_identity()
 
         if not current_user_id or not isinstance(current_user_id, dict):
@@ -117,13 +117,13 @@ class MediaController:
         if not user_id:
             return error_response("invalid token claims", 401)
 
-        # Validate folio ownership
-        error_resp, folio = MediaController._get_user_folio(folio_id, user_id)
+        # Validate event ownership
+        error_resp, event = MediaController._get_user_event(event_id, user_id)
         if error_resp:
             return error_resp
 
-        if folio is None:
-            return error_response("folio access denied", 403)
+        if event is None:
+            return error_response("event access denied", 403)
 
         try:
             # Check if files are provided
@@ -148,7 +148,7 @@ class MediaController:
                     # Upload using enhanced service
                     media = MediaService.upload_media_file(
                         file=file,
-                        folio_id=folio.id,
+                        event_id=event.id,
                         custom_filename=payload.custom_filename,
                         optimization=payload.optimize
                     )
@@ -168,8 +168,8 @@ class MediaController:
                 "message": f"Successfully uploaded {len(uploaded_media)} file(s)"
             }
 
-            log_event(f"Media uploaded to folio {folio.handle}", data={
-                "folio_id": str(folio.id),
+            log_event(f"Media uploaded to event {event.title}", data={
+                "event_id": str(event.id),
                 "user_id": str(user_id),
                 "uploaded_count": len(uploaded_media),
                 "error_count": len(errors)
@@ -187,8 +187,8 @@ class MediaController:
 
     @staticmethod
     @jwt_required()
-    def list_media(folio_id: str) -> Response:
-        """List all media within a folio."""
+    def list_media(event_id: str) -> Response:
+        """List all media within a event."""
         current_user_id = get_jwt_identity()
 
         if not current_user_id or not isinstance(current_user_id, dict):
@@ -198,13 +198,13 @@ class MediaController:
         if not user_id:
             return error_response("invalid token claims", 401)
 
-        # Validate folio ownership
-        error_resp, folio = MediaController._get_user_folio(folio_id, user_id)
+        # Validate event ownership
+        error_resp, event = MediaController._get_user_event(event_id, user_id)
         if error_resp:
             return error_resp
 
-        if folio is None:
-            return error_response("folio access denied", 403)
+        if event is None:
+            return error_response("event access denied", 403)
 
         # Get pagination and filtering parameters
         page = request.args.get('page', 1, type=int)
@@ -216,7 +216,7 @@ class MediaController:
         order = request.args.get('order', 'desc')
 
         # Build query
-        stmt = select(Media).where(Media.folio_id == folio.id)
+        stmt = select(Media).where(Media.event_id == event.id)
 
         # Apply filters
         if file_type:
@@ -265,7 +265,7 @@ class MediaController:
 
     @staticmethod
     @jwt_required()
-    def get_media(folio_id: str, media_id: str) -> Response:
+    def get_media(event_id: str, media_id: str) -> Response:
         """Get a specific media file by ID."""
         current_user_id = get_jwt_identity()
 
@@ -277,15 +277,15 @@ class MediaController:
             return error_response("invalid token claims", 401)
 
         # Get media and validate ownership
-        error_resp, media, folio = MediaController._get_folio_media(folio_id, media_id, user_id)
+        error_resp, media, event = MediaController._get_event_media(event_id, media_id, user_id)
         if error_resp:
             return error_resp
 
         if media is None:
             return error_response("media not found", 404)
 
-        if folio is None:
-            return error_response("folio access denied", 403)
+        if event is None:
+            return error_response("event access denied", 403)
 
         # Increment usage count
         media.increment_usage()
@@ -298,7 +298,7 @@ class MediaController:
 
     @staticmethod
     @jwt_required()
-    def update_media(folio_id: str, media_id: str) -> Response:
+    def update_media(event_id: str, media_id: str) -> Response:
         """Update media metadata."""
         current_user_id = get_jwt_identity()
 
@@ -310,15 +310,15 @@ class MediaController:
             return error_response("invalid token claims", 401)
 
         # Get media and validate ownership
-        error_resp, media, folio = MediaController._get_folio_media(folio_id, media_id, user_id)
+        error_resp, media, event = MediaController._get_event_media(event_id, media_id, user_id)
         if error_resp:
             return error_resp
 
         if media is None:
             return error_response("media not found", 404)
 
-        if folio is None:
-            return error_response("folio access denied", 403)
+        if event is None:
+            return error_response("event access denied", 403)
 
         # Parse request
         payload = UpdateMediaRequest.model_validate(request.get_json())
@@ -335,7 +335,7 @@ class MediaController:
 
             log_event(f"Media updated: {media.filename}", data={
                 "media_id": str(media.id),
-                "folio_id": str(folio.id),
+                "event_id": str(event.id),
                 "user_id": str(user_id)
             })
 
@@ -352,7 +352,7 @@ class MediaController:
 
     @staticmethod
     @jwt_required()
-    def delete_media(folio_id: str, media_id: str) -> Response:
+    def delete_media(event_id: str, media_id: str) -> Response:
         """Delete a specific media file."""
         current_user_id = get_jwt_identity()
 
@@ -364,24 +364,24 @@ class MediaController:
             return error_response("invalid token claims", 401)
 
         # Get media and validate ownership
-        error_resp, media, folio = MediaController._get_folio_media(folio_id, media_id, user_id)
+        error_resp, media, event = MediaController._get_event_media(event_id, media_id, user_id)
         if error_resp:
             return error_resp
 
         if media is None:
             return error_response("media not found", 404)
 
-        if folio is None:
-            return error_response("folio access denied", 403)
+        if event is None:
+            return error_response("event access denied", 403)
 
         try:
             filename = media.filename
-            success = MediaService.delete_media(media.id, folio.id)
+            success = MediaService.delete_media(media.id, event.id)
 
             if success:
                 log_event(f"Media deleted: {filename}", data={
                     "media_id": str(media_id),
-                    "folio_id": str(folio.id),
+                    "event_id": str(event.id),
                     "user_id": str(user_id)
                 })
 
@@ -395,8 +395,8 @@ class MediaController:
 
     @staticmethod
     @jwt_required()
-    def get_media_stats(folio_id: str) -> Response:
-        """Get media statistics for a folio."""
+    def get_media_stats(event_id: str) -> Response:
+        """Get media statistics for a event."""
         current_user_id = get_jwt_identity()
 
         if not current_user_id or not isinstance(current_user_id, dict):
@@ -406,16 +406,16 @@ class MediaController:
         if not user_id:
             return error_response("invalid token claims", 401)
 
-        # Validate folio ownership
-        error_resp, folio = MediaController._get_user_folio(folio_id, user_id)
+        # Validate event ownership
+        error_resp, event = MediaController._get_user_event(event_id, user_id)
         if error_resp:
             return error_resp
 
-        if folio is None:
-            return error_response("folio access denied", 403)
+        if event is None:
+            return error_response("event access denied", 403)
 
         try:
-            stats = MediaService.get_media_usage_stats(folio.id)
+            stats = MediaService.get_media_usage_stats(event.id)
 
             response_data = MediaStatsResponse(
                 total_files=stats.get('total_files', 0),
@@ -432,7 +432,7 @@ class MediaController:
 
     @staticmethod
     @jwt_required()
-    def bulk_delete_media(folio_id: str) -> Response:
+    def bulk_delete_media(event_id: str) -> Response:
         """Delete multiple media files."""
         current_user_id = get_jwt_identity()
 
@@ -443,13 +443,13 @@ class MediaController:
         if not user_id:
             return error_response("invalid token claims", 401)
 
-        # Validate folio ownership
-        error_resp, folio = MediaController._get_user_folio(folio_id, user_id)
+        # Validate event ownership
+        error_resp, event = MediaController._get_user_event(event_id, user_id)
         if error_resp:
             return error_resp
 
-        if folio is None:
-            return error_response("folio access denied", 403)
+        if event is None:
+            return error_response("event access denied", 403)
 
         # Parse request
         payload = DeleteMediaRequest.model_validate(request.get_json())
@@ -459,14 +459,14 @@ class MediaController:
             failed_deletions = []
 
             for media_id in payload.media_ids:
-                success = MediaService.delete_media(media_id, folio.id)
+                success = MediaService.delete_media(media_id, event.id)
                 if success:
                     deleted_count += 1
                 else:
                     failed_deletions.append(str(media_id))
 
-            log_event(f"Bulk media deletion in folio {folio.handle}", data={
-                "folio_id": str(folio.id),
+            log_event(f"Bulk media deletion in event {event.title}", data={
+                "event_id": str(event.id),
                 "user_id": str(user_id),
                 "deleted_count": deleted_count,
                 "failed_count": len(failed_deletions)
@@ -492,11 +492,11 @@ class MediaController:
 
     @staticmethod
     def get_public_media(handle: str) -> Response:
-        """Get public media for a published folio by handle."""
-        # Get folio by handle
-        folio = Folio.query.filter_by(handle=handle, is_published=True).first()
-        if not folio:
-            return error_response("folio not found", 404)
+        """Get public media for a published event by handle."""
+        # Get event by handle
+        event = Event.query.filter_by(handle=handle, is_published=True).first()
+        if not event:
+            return error_response("event not found", 404)
 
         # Get query parameters
         page = request.args.get('page', 1, type=int)
@@ -505,7 +505,7 @@ class MediaController:
         is_featured = request.args.get('is_featured', type=bool)
 
         # Build query for public media only
-        stmt = select(Media).where(Media.folio_id == folio.id)
+        stmt = select(Media).where(Media.event_id == event.id)
 
         if file_type:
             stmt = stmt.where(Media.file_type == file_type)

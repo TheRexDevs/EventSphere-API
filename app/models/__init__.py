@@ -16,6 +16,7 @@ from .media import Media
 from .user import AppUser, Profile, Address, TempUser
 from .role import Role, UserRole
 from .wallet import Wallet
+from .event import Event
 
 from .payment import Payment, Transaction
 from .subscription import Subscription, SubscriptionPlan

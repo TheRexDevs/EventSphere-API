@@ -2,7 +2,7 @@
 Media model for file management for events.
 
 This module defines the Media model that represents uploaded files (images, videos, documents)
-belonging to folios. Media includes metadata, optimization, and relationships to content.
+belonging to events. Media includes metadata, optimization, and relationships to content.
 
 Author: Emmanuel Olowu
 Link: https://github.com/zeddyemy
@@ -24,11 +24,11 @@ from app.utils.date_time import DateTimeUtils
 # Forward declarations for type hints
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .folio import Folio
+    from .Event import Event
 
 
 class Media(db.Model):
-    """Model for media files within folios."""
+    """Model for media files within Events."""
 
     __tablename__ = 'media'
 
@@ -36,7 +36,7 @@ class Media(db.Model):
     id: M[uuid.UUID] = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
 
     # Relationships
-    folio_id: M[uuid.UUID] = db.Column(UUID(as_uuid=True), ForeignKey('folio.id', ondelete='CASCADE'), nullable=False, index=True)
+    event_id: M[uuid.UUID] = db.Column(UUID(as_uuid=True), ForeignKey('event.id', ondelete='CASCADE'), nullable=False, index=True)
     
 
     # File Information
@@ -73,7 +73,7 @@ class Media(db.Model):
     updated_at: M[datetime] = db.Column(db.DateTime(timezone=True), default=DateTimeUtils.aware_utcnow, onupdate=DateTimeUtils.aware_utcnow)
 
     # Relationships
-    folio: M["Folio"] = relationship("Folio", back_populates="media")
+    Event: M["Event"] = relationship("Event", back_populates="media")
 
     def __repr__(self) -> str:
         return f"<Media {self.id}, {self.filename} ({self.file_type})>"
@@ -82,7 +82,7 @@ class Media(db.Model):
         """Convert media instance to dictionary representation."""
         return {
             'id': str(self.id),
-            'folio_id': str(self.folio_id),
+            'event_id': str(self.event_id),
             'filename': self.filename,
             'original_filename': self.original_filename,
             'file_path': self.file_path,
@@ -127,14 +127,14 @@ class Media(db.Model):
         db.session.commit()
 
     @staticmethod
-    def get_folio_media(
-        folio_id: uuid.UUID,
+    def get_event_media(
+        event_id: uuid.UUID,
         file_type: Optional[str] = None,
         include_featured: Optional[bool] = None,
         limit: Optional[int] = None
     ) -> List["Media"]:
-        """Get media for a specific folio with optional filters."""
-        query = Media.query.filter_by(folio_id=folio_id)
+        """Get media for a specific Event with optional filters."""
+        query = Media.query.filter_by(event_id=event_id)
 
         if file_type:
             query = query.filter_by(file_type=file_type)
@@ -150,17 +150,17 @@ class Media(db.Model):
         return query.all()
 
     @staticmethod
-    def search_folio_media(
-        folio_id: uuid.UUID,
+    def search_event_media(
+        event_id: uuid.UUID,
         search_term: str,
         file_type: Optional[str] = None
     ) -> List["Media"]:
-        """Search media within a folio."""
+        """Search media within a Event."""
         from sqlalchemy import or_, and_
 
         query = Media.query.filter(
             and_(
-                Media.folio_id == folio_id,
+                Media.event_id == event_id,
                 or_(
                     Media.filename.ilike(f'%{search_term}%'),
                     Media.original_filename.ilike(f'%{search_term}%')

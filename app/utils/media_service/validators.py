@@ -3,7 +3,7 @@ File validation functions for Media Service.
 
 Author: Emmanuel Olowu
 Link: https://github.com/zeddyemy
-Package: Folio Builder
+Package: EventSphere
 """
 
 import os
@@ -14,7 +14,7 @@ from werkzeug.utils import secure_filename
 import uuid
 
 from ...extensions import db
-from ...models import Folio
+from ...models import Event
 from .constants import (
     IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, DOCUMENT_EXTENSIONS,
     MAX_FILE_SIZE, MAX_IMAGE_SIZE, MAX_VIDEO_SIZE
@@ -25,13 +25,13 @@ class MediaValidator:
     """File validation utilities."""
 
     @staticmethod
-    def validate_file(file: FileStorage, folio_id: uuid.UUID) -> Dict[str, Any]:
+    def validate_file(file: FileStorage, event_id: uuid.UUID) -> Dict[str, Any]:
         """
         Comprehensive file validation.
 
         Args:
             file: The uploaded file
-            folio_id: Folio ID for ownership validation
+            event_id: Event ID for ownership validation
 
         Returns:
             Dict with validation results and metadata
@@ -70,10 +70,10 @@ class MediaValidator:
             else:
                 return {'valid': False, 'error': f'Unsupported file type: {ext}'}
 
-            # Folio ownership validation
-            folio = Folio.query.filter_by(id=folio_id).first()
-            if not folio:
-                return {'valid': False, 'error': 'Invalid folio'}
+            # Event ownership validation
+            event = Event.query.filter_by(id=event_id).first()
+            if not event:
+                return {'valid': False, 'error': 'Invalid event'}
 
             return {
                 'valid': True,
@@ -83,7 +83,7 @@ class MediaValidator:
                 'file_type': file_type,
                 'mime_type': mime_type,
                 'extension': ext,
-                'folio': folio
+                'event': event
             }
 
         except Exception as e:

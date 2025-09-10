@@ -16,9 +16,9 @@ from docs import FlaskOpenAPISpec, SecurityScheme, QueryParameter, DocsConfig, e
 
 # Create configuration for Folio Builder API dynamically
 config = DocsConfig.from_dict({
-    'title': 'Folio Builder API',
+    'title': 'EventSphere API',
     'version': '1.0.0',
-    'description': 'You can checkout more details [here](https://github.com/zeddyemy/folio-api#folio-api)',
+    'description': 'You can checkout more details [here](https://github.com/TheRexDevs/EventSphere-API)',
     'contact': {
         'email': 'zeddyemy@gmail.com',
         'name': 'Emmanuel Olowu',

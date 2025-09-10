@@ -15,7 +15,7 @@ class Config:
     CLIENT_ORIGINS = os.getenv("CLIENT_ORIGINS") or os.environ.get("CLIENT_ORIGINS") or "http://localhost:3000,http://localhost:2007,http://localhost:5173,http://localhost:5000"
     CLIENT_ORIGINS = [origin.strip() for origin in CLIENT_ORIGINS.split(",")]
     
-    SEED_DB = True
+    SEED_DB = False
     DEFAULT_ADMIN_USERNAME = os.getenv("DEFAULT_ADMIN_USERNAME")
     DEFAULT_ADMIN_PASSWORD = os.getenv("DEFAULT_ADMIN_PASSWORD")
     

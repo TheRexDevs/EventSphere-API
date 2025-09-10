@@ -13,12 +13,12 @@ from ...utils.helpers.basics import generate_random_string
 from ...utils.helpers.loggers import console_log, log_exception
 
 
-def generate_folio_folder_path(folio_handle: str) -> str:
-    """Generate organized folder path: folio_handle/yy/mm."""
+def generate_event_folder_path(event_handle: str) -> str:
+    """Generate organized folder path: event_handle/yy/mm."""
     today = date.today()
     year = str(today.year)
     month = str(today.month).zfill(2)
-    return f"{folio_handle}/{year}/{month}"
+    return f"{event_handle}/{year}/{month}"
 
 
 def generate_unique_filename(base_name: str, extension: str) -> str:
@@ -41,7 +41,7 @@ def is_valid_filename(filename: str) -> bool:
 
 # Re-export logging functions for convenience
 __all__ = [
-    'generate_folio_folder_path',
+    'generate_event_folder_path',
     'generate_unique_filename',
     'get_file_size_mb',
     'is_valid_filename',

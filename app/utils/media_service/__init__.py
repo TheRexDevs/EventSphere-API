@@ -5,7 +5,7 @@ This package provides comprehensive media management including organized Cloudin
 image optimization, thumbnail generation, and file validation with proper error handling.
 
 Features:
-- Organized folder structure: folio_handle/yy/mm/file
+- Organized folder structure: event_handle/yy/mm/file
 - Image optimization and resizing
 - Thumbnail generation
 - File type validation
@@ -30,7 +30,7 @@ from .validators import MediaValidator
 from .uploaders import CloudinaryUploader
 from .processors import MediaProcessor
 from .utils import (
-    generate_folio_folder_path,
+    generate_event_folder_path,
     generate_unique_filename,
     console_log,
     log_exception
@@ -41,9 +41,9 @@ class MediaService:
     """Enhanced media service with organization and optimization."""
 
     @staticmethod
-    def validate_file(file: FileStorage, folio_id: uuid.UUID) -> Dict[str, Any]:
+    def validate_file(file: FileStorage, event_id: uuid.UUID) -> Dict[str, Any]:
         """Validate uploaded file."""
-        return MediaValidator.validate_file(file, folio_id)
+        return MediaValidator.validate_file(file, event_id)
 
     @staticmethod
     def upload_to_cloudinary(
@@ -70,7 +70,7 @@ class MediaService:
 
     @staticmethod
     def save_media_record(
-        folio_id: uuid.UUID,
+        event_id: uuid.UUID,
         filename: str,
         original_filename: str,
         cloudinary_result: Dict[str, Any],
@@ -79,7 +79,7 @@ class MediaService:
         """Save media record to database."""
         try:
             media = Media()
-            media.folio_id = folio_id
+            media.event_id = event_id
             media.filename = filename
             media.original_filename = original_filename
             media.file_path = cloudinary_result['public_id']
@@ -123,7 +123,7 @@ class MediaService:
     @staticmethod
     def upload_media_file(
         file: FileStorage,
-        folio_id: uuid.UUID,
+        event_id: uuid.UUID,
         custom_filename: Optional[str] = None,
         optimization: bool = True
     ) -> Media:
@@ -132,7 +132,7 @@ class MediaService:
 
         Args:
             file: Uploaded file
-            folio_id: Target folio ID
+            event_id: Target event ID
             custom_filename: Optional custom filename
             optimization: Whether to apply optimizations
 
@@ -145,12 +145,12 @@ class MediaService:
         """
         try:
             # Step 1: Validate file
-            validation = MediaService.validate_file(file, folio_id)
+            validation = MediaService.validate_file(file, event_id)
             if not validation['valid']:
                 raise ValueError(validation['error'])
 
             # Step 2: Generate organized folder path
-            folder_path = generate_folio_folder_path(validation['folio'].handle)
+            folder_path = generate_event_folder_path(validation['event'].handle)
 
             # Step 3: Generate unique filename
             base_name = custom_filename or validation['filename']
@@ -175,7 +175,7 @@ class MediaService:
 
             # Step 6: Save to database
             media = MediaService.save_media_record(
-                folio_id=folio_id,
+                event_id=event_id,
                 filename=f"{os.path.splitext(base_name)[0]}-{generate_unique_filename(base_name, '')}{validation['extension']}",
                 original_filename=validation['original_filename'],
                 cloudinary_result=cloudinary_result,
@@ -189,10 +189,10 @@ class MediaService:
             raise e
 
     @staticmethod
-    def delete_media(media_id: uuid.UUID, folio_id: uuid.UUID) -> bool:
+    def delete_media(media_id: uuid.UUID, event_id: uuid.UUID) -> bool:
         """Delete media from Cloudinary and database."""
         try:
-            media = Media.query.filter_by(id=media_id, folio_id=folio_id).first()
+            media = Media.query.filter_by(id=media_id, event_id=event_id).first()
             if not media:
                 return False
 
@@ -213,8 +213,8 @@ class MediaService:
             return False
 
     @staticmethod
-    def get_media_usage_stats(folio_id: uuid.UUID) -> Dict[str, Any]:
-        """Get media usage statistics for a folio."""
+    def get_media_usage_stats(event_id: uuid.UUID) -> Dict[str, Any]:
+        """Get media usage statistics for a event."""
         try:
             from sqlalchemy import func
 
@@ -223,7 +223,7 @@ class MediaService:
                 func.count(Media.id).label('count'),
                 func.sum(Media.file_size).label('total_size'),
                 func.avg(Media.usage_count).label('avg_usage')
-            ).filter(Media.folio_id == folio_id).group_by(Media.file_type).all()
+            ).filter(Media.event_id == event_id).group_by(Media.file_type).all()
 
             # Calculate totals manually since stat.count and stat.total_size are SQLAlchemy result objects
             total_files = 0
@@ -255,7 +255,7 @@ class MediaService:
             return {}
 
     @staticmethod
-    def bulk_delete_unused_media(folio_id: uuid.UUID, days_old: int = 30) -> int:
+    def bulk_delete_unused_media(event_id: uuid.UUID, days_old: int = 30) -> int:
         """Delete media files that haven't been used recently."""
         try:
             from datetime import timedelta
@@ -266,7 +266,7 @@ class MediaService:
             # Find media with low usage that's old
             unused_media = Media.query.filter(
                 and_(
-                    Media.folio_id == folio_id,
+                    Media.event_id == event_id,
                     Media.usage_count == 0,
                     Media.created_at < cutoff_date,
                     or_(Media.file_type == 'image', Media.file_type == 'document')
@@ -275,7 +275,7 @@ class MediaService:
 
             deleted_count = 0
             for media in unused_media:
-                if MediaService.delete_media(media.id, folio_id):
+                if MediaService.delete_media(media.id, event_id):
                     deleted_count += 1
 
             return deleted_count
