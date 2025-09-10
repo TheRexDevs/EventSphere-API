@@ -1,5 +1,5 @@
 [project]
-name = "folio-builder-api"
+name = "event-sphere-api"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
