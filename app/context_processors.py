@@ -13,8 +13,8 @@ def app_context_Processor():
     return {
         'CURRENT_USER': current_user_info,
         'SITE_INFO': {
-            "site_title": "Folio Builder",
-            "site_tagline": "Build and scale beautiful portfolios",
+            "site_title": "EventSphere",
+            "site_tagline": "College Event Information System",
             "currency": "NGN",
         },
     }
