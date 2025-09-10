@@ -1,0 +1,149 @@
+{
+	"swagger": "2.0",
+	"info": {
+		"title": "ScanCodes API",
+		"version": "1.0.0",
+		"contact": {
+			"email": "zeddyemy@gmail.com"
+		},
+		"description": "You can checkout more details [here](https://github.com/zeddyemy/folio-builder-api#folio-builder-api)."
+	},
+	"schemes": ["https", "http"],
+	"securityDefinitions": {
+		"AdminBearerAuth": {
+			"type": "apiKey",
+			"in": "header",
+			"name": "Authorization",
+			"description": "Login as an Admin user to use Admin API Endpoints"
+		},
+		"PublicBearerAuth": {
+			"type": "apiKey",
+			"in": "header",
+			"name": "Authorization",
+			"description": "Login as a customer to use API Endpoints"
+		}
+	},
+	"tags": [
+		{
+			"name": "Public",
+			"description": "Public API endpoints"
+		},
+		{
+			"name": "Admin",
+			"description": "Admin API endpoints"
+		}
+	],
+
+	"paths": {
+		"/api/v1/auth/signup": {
+			"post": {
+				"tags": ["Public"],
+				"summary": "Endpoint for Customers to Signup",
+				"parameters": [
+					{
+						"name": "body",
+						"in": "body",
+						"schema": {
+							"type": "object",
+							"properties": {
+								"email": { "type": "string" },
+								"username": { "type": "string" },
+								"password": { "type": "string" },
+								"firstname": { "type": "string" },
+								"lastname": { "type": "string" }
+							}
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Status of the update",
+						"schema": {
+							"type": "object",
+							"properties": {
+								"message": { "type": "string" },
+								"status": {
+									"type": "string",
+									"enum": ["success", "failed"],
+									"example": "success"
+								},
+								"status_code": {
+									"type": "integer",
+									"enum": [200, 400, 409],
+									"example": 200
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/v1/auth/login": {
+			"post": {
+				"tags": ["Public"],
+				"summary": "Endpoint for Customers to Login to App",
+				"parameters": [
+					{
+						"name": "body",
+						"in": "body",
+						"schema": {
+							"type": "object",
+							"properties": {
+								"email_username": { "type": "string" },
+								"password": { "type": "string" }
+							}
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Login details",
+						"schema": {
+							"type": "object",
+							"properties": {
+								"message": { "type": "string" },
+								"status": {
+									"type": "string",
+									"enum": ["success", "failed"],
+									"example": "success"
+								},
+								"status_code": {
+									"type": "integer",
+									"enum": [200, 400, 409],
+									"example": 200
+								},
+								"data": {
+									"type": "object",
+									"properties": {
+										"access_token": { "type": "string" },
+										"user_data": {
+											"type": "object",
+											"properties": {
+												"username": {
+													"type": "string"
+												},
+												"email": { "type": "string" },
+												"roles": {
+													"type": "array",
+													"items": {
+														"type": "string"
+													},
+													"enum": [
+														"Admin",
+														"Junior Admin",
+														"Customer"
+													],
+													"example": ["Customer"]
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
