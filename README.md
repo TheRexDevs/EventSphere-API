@@ -1,6 +1,6 @@
-### Folio API
+### EventSphere API
 
-Backend service for a multi-tenant portfolio CMS. Flask + SQLAlchemy, JWT, and payment integrations.
+Backend service for EventSphere a a full-stack college event management system that allows students to discover, register for, and participate in college events while providing organizers and admins with tools to manage events efficiently.
 
 Setup
 - Create and activate a Python 3.12 venv
