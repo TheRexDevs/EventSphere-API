@@ -27,13 +27,39 @@ if TYPE_CHECKING:
 
 class Feedback(db.Model):
     __tablename__ = "feedback"
-    
+
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('event.id'), nullable=False)
     student_id = db.Column(UUID(as_uuid=True), db.ForeignKey('app_user.id'), nullable=False)
-    rating = db.Column(db.Integer, nullable=False)
-    comments = db.Column(db.Text)
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 star rating
+    comment = db.Column(db.Text, nullable=True)  # Optional written feedback
+    aspects = db.Column(db.JSON, nullable=True)  # JSON object with aspect ratings
     submitted_on = db.Column(db.DateTime(timezone=True), default=DateTimeUtils.aware_utcnow)
-    
+
+    # Relationships
     event = db.relationship('Event', backref=db.backref('feedbacks', lazy='dynamic'))
     student = db.relationship('AppUser', backref=db.backref('feedbacks', lazy='dynamic'))
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert feedback instance to dictionary representation."""
+        return {
+            'id': str(self.id),
+            'event_id': str(self.event_id),
+            'student_id': str(self.student_id),
+            'rating': self.rating,
+            'comment': self.comment,
+            'aspects': self.aspects,
+            'submitted_on': self.submitted_on.isoformat() if self.submitted_on else None,
+            'event': {
+                'id': str(self.event.id),
+                'title': self.event.title,
+                'date': self.event.date.isoformat() if self.event.date else None,
+                'organizer': self.event.organizer.username if self.event.organizer else None
+            } if self.event else None,
+            'student': {
+                'id': str(self.student.id),
+                'username': self.student.username,
+                'email': self.student.email,
+                'full_name': self.student.profile.full_name if self.student.profile else None
+            } if self.student else None,
+        }

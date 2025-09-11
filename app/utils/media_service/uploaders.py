@@ -29,7 +29,7 @@ class CloudinaryUploader:
 
     @staticmethod
     def upload_to_cloudinary(
-        file: FileStorage,
+        file: Any,
         public_id: str,
         folder: str,
         resource_type: str = 'auto',

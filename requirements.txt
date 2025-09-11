@@ -39,3 +39,4 @@ pydantic==2.8.2
 apispec==6.8.2
 apispec-webframeworks==1.2.0
 flask-pydantic-spec==0.8.6
+reportlab==4.0.7

@@ -5,3 +5,5 @@ from .auth import AuthController
 from .media import MediaController
 from .event import PublicEventController
 from .registration import RegistrationController
+from .certificate import PublicCertificateController
+from .feedback import PublicFeedbackController

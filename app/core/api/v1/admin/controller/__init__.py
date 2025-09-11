@@ -6,6 +6,8 @@ from typing import Dict, Any
 
 from .event import EventController
 from .attendance import AttendanceController
+from .certificate import CertificateController
+from .feedback import AdminFeedbackController
 
 def get_admin_root() -> Dict[str, Any]:
     """Return metadata for the admin v1 API root."""

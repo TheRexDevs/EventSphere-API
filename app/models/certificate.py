@@ -32,7 +32,31 @@ class Certificate(db.Model):
     event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('event.id'), nullable=False)
     student_id = db.Column(UUID(as_uuid=True), db.ForeignKey('app_user.id'), nullable=False)
     certificate_url = db.Column(db.String(255), nullable=False)
+    cloudinary_public_id = db.Column(db.String(255), nullable=True, index=True)
     issued_on = db.Column(db.DateTime(timezone=True), default=DateTimeUtils.aware_utcnow)
     
     event = db.relationship('Event', backref=db.backref('certificates', lazy='dynamic'))
     student = db.relationship('AppUser', backref=db.backref('certificates', lazy='dynamic'))
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert certificate instance to dictionary representation."""
+        return {
+            'id': str(self.id),
+            'event_id': str(self.event_id),
+            'student_id': str(self.student_id),
+            'certificate_url': self.certificate_url,
+            'cloudinary_public_id': self.cloudinary_public_id,
+            'issued_on': self.issued_on.isoformat() if self.issued_on else None,
+            'event': {
+                'id': str(self.event.id),
+                'title': self.event.title,
+                'date': self.event.date.isoformat() if self.event.date else None,
+                'venue': self.event.venue
+            } if self.event else None,
+            'student': {
+                'id': str(self.student.id),
+                'username': self.student.username,
+                'email': self.student.email,
+                'full_name': self.student.profile.full_name if self.student.profile else None
+            } if self.student else None,
+        }
