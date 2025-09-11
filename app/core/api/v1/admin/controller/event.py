@@ -18,12 +18,14 @@ from datetime import datetime
 from flask import request, g
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload
+from pydantic import ValidationError
 
 from app.extensions import db
 from app.models.event import Event, EventCategory
 from app.models.user import AppUser
 from app.utils.helpers.http_response import success_response, error_response
 from app.utils.date_time import DateTimeUtils
+from app.schemas.event import CreateEventRequest, UpdateEventRequest
 
 
 class EventController:
@@ -33,37 +35,30 @@ class EventController:
     def create_event():
         """Create a new event (Organizer/Admin only)."""
         try:
-            data = request.get_json()
-            if not data:
-                return error_response("No data provided", 400)
+            # Validate request data using Pydantic schema
+            payload = CreateEventRequest.model_validate(request.get_json())
 
             # Get current user
             current_user = g.user
             if not current_user:
                 return error_response("Authentication required", 401)
 
-            # Validate required fields
-            required_fields = ['title', 'description', 'date', 'time', 'venue']
-            for field in required_fields:
-                if field not in data or not data[field]:
-                    return error_response(f"{field} is required", 400)
-
-            # Create event
+            # Create event with validated data
             event = Event()
-            event.title = data['title']
-            event.description = data['description']
-            event.date = datetime.fromisoformat(data['date']).date()
-            event.time = datetime.fromisoformat(data['time']).time()
-            event.venue = data['venue']
-            event.capacity = data.get('capacity', 0)
-            event.max_participants = data.get('max_participants', 0)
+            event.title = payload.title
+            event.description = payload.description
+            event.date = datetime.fromisoformat(payload.date).date()
+            event.time = datetime.fromisoformat(payload.time).time()
+            event.venue = payload.venue
+            event.capacity = payload.capacity
+            event.max_participants = payload.max_participants
             event.organizer_id = current_user.id
 
             # Set category if provided
-            if 'category_id' in data and data['category_id']:
-                category = EventCategory.query.get(uuid.UUID(data['category_id']))
+            if payload.category_id:
+                category = EventCategory.query.get(payload.category_id)
                 if category:
-                    event.category_id = category.id
+                    event.category_id = payload.category_id
 
             db.session.add(event)
             db.session.commit()
@@ -71,9 +66,11 @@ class EventController:
             return success_response(
                 "Event created successfully. Pending admin approval.",
                 201,
-                event.to_dict()
+                {"event": event.to_dict()}
             )
 
+        except ValidationError as e:
+            return error_response(f"Validation error: {str(e)}", 400)
         except Exception as e:
             db.session.rollback()
             return error_response(f"Failed to create event: {str(e)}", 500)
@@ -144,7 +141,7 @@ class EventController:
             return success_response(
                 "Event retrieved successfully",
                 200,
-                event.to_dict()
+                {"event": event.to_dict()}
             )
 
         except ValueError:
@@ -172,28 +169,28 @@ class EventController:
                 current_user.role not in ['admin', 'organizer']):
                 return error_response("Insufficient permissions", 403)
 
-            data = request.get_json()
-            if not data:
-                return error_response("No data provided", 400)
+            # Validate request data using Pydantic schema
+            payload = UpdateEventRequest.model_validate(request.get_json())
 
-            # Update fields
-            updatable_fields = [
-                'title', 'description', 'date', 'time', 'venue',
-                'capacity', 'max_participants', 'category_id'
-            ]
-
-            for field in updatable_fields:
-                if field in data:
-                    if field == 'date':
-                        setattr(event, field, datetime.fromisoformat(data[field]).date())
-                    elif field == 'time':
-                        setattr(event, field, datetime.fromisoformat(data[field]).time())
-                    elif field == 'category_id' and data[field]:
-                        category = EventCategory.query.get(uuid.UUID(data[field]))
-                        if category:
-                            setattr(event, field, category.id)
-                    else:
-                        setattr(event, field, data[field])
+            # Update fields with validated data
+            if payload.title is not None:
+                event.title = payload.title
+            if payload.description is not None:
+                event.description = payload.description
+            if payload.date is not None:
+                event.date = datetime.fromisoformat(payload.date).date()
+            if payload.time is not None:
+                event.time = datetime.fromisoformat(payload.time).time()
+            if payload.venue is not None:
+                event.venue = payload.venue
+            if payload.capacity is not None:
+                event.capacity = payload.capacity
+            if payload.max_participants is not None:
+                event.max_participants = payload.max_participants
+            if payload.category_id is not None:
+                category = EventCategory.query.get(payload.category_id)
+                if category:
+                    event.category_id = payload.category_id
 
             event.updated_at = DateTimeUtils.aware_utcnow()
             db.session.commit()
@@ -201,9 +198,11 @@ class EventController:
             return success_response(
                 "Event updated successfully",
                 200,
-                event.to_dict()
+                {"event": event.to_dict()}
             )
 
+        except ValidationError as e:
+            return error_response(f"Validation error: {str(e)}", 400)
         except ValueError:
             return error_response("Invalid data format", 400)
         except Exception as e:
@@ -263,7 +262,7 @@ class EventController:
             return success_response(
                 "Event approved successfully",
                 200,
-                event.to_dict()
+                {"event": event.to_dict()}
             )
 
         except Exception as e:
@@ -294,7 +293,7 @@ class EventController:
             return success_response(
                 "Event publish status updated",
                 200,
-                event.to_dict()
+                {"event": event.to_dict()}
             )
 
         except Exception as e:

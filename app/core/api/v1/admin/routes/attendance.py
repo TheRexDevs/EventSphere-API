@@ -16,6 +16,7 @@ from flask_pydantic_spec import Response
 from app.docs import spec, endpoint, SecurityScheme
 from app.utils.decorators.auth import roles_required
 from app.schemas.common import ApiResponse
+from app.schemas.attendance import MarkAttendanceRequest, AttendanceRecordResponse, EventAttendanceResponse
 
 def register_routes(bp):
     """Register attendance routes."""
@@ -23,6 +24,7 @@ def register_routes(bp):
     @bp.post("/attendance")
     @roles_required('admin', 'organizer')
     @endpoint(
+        request_body=MarkAttendanceRequest,
         security=SecurityScheme.ADMIN_BEARER,
         tags=["Attendance Management"],
         summary="Mark Attendance",

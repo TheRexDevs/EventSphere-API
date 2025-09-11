@@ -16,6 +16,12 @@ from flask_pydantic_spec import Response
 from app.docs import spec, endpoint, QueryParameter, SecurityScheme
 from app.utils.decorators.auth import roles_required
 from app.schemas.common import ApiResponse
+from app.schemas.registration import (
+    RegisterForEventRequest,
+    CancelRegistrationRequest,
+    RegistrationResponse,
+    RegistrationListResponse
+)
 
 def register_routes(bp):
     """Register registration routes."""
@@ -23,6 +29,7 @@ def register_routes(bp):
     @bp.post("/events/<string:event_id>/register")
     @roles_required('participant')
     @endpoint(
+        request_body=RegisterForEventRequest,
         security=SecurityScheme.PUBLIC_BEARER,
         tags=["Event Registration"],
         summary="Register for Event",
@@ -36,6 +43,7 @@ def register_routes(bp):
     @bp.delete("/events/<string:event_id>/register")
     @roles_required('participant')
     @endpoint(
+        request_body=CancelRegistrationRequest,
         security=SecurityScheme.PUBLIC_BEARER,
         tags=["Event Registration"],
         summary="Cancel Registration",

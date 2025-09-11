@@ -14,6 +14,7 @@ from __future__ import annotations
 from ..controller import PublicEventController
 from flask_pydantic_spec import Response
 from app.docs import spec, endpoint, QueryParameter
+from app.schemas.event import EventResponse, EventListResponse, EventCategoriesResponse
 from app.schemas.common import ApiResponse
 
 def register_routes(bp):

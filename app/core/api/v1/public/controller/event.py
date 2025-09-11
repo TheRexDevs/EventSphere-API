@@ -94,7 +94,7 @@ class PublicEventController:
             return success_response(
                 "Event retrieved successfully",
                 200,
-                event.to_dict()
+                {"event": event.to_dict()}
             )
 
         except ValueError:
@@ -107,7 +107,7 @@ class PublicEventController:
         """Get all available event categories."""
         try:
             from app.models.event import EventCategory
-            categories = EventCategory.query.all()
+            categories: List[EventCategory] = EventCategory.query.all()
 
             return success_response(
                 "Categories retrieved successfully",

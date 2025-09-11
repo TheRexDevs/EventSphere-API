@@ -71,11 +71,10 @@ class RegistrationController:
                 return error_response("Event is full", 409)
 
             # Create new registration
-            registration = Registration(
-                event_id=event_uuid,
-                student_id=current_user.id,
-                status='confirmed'
-            )
+            registration = Registration()
+            registration.event_id=event_uuid
+            registration.student_id=current_user.id
+            registration.status='confirmed'
 
             db.session.add(registration)
             db.session.commit()
@@ -83,7 +82,7 @@ class RegistrationController:
             return success_response(
                 "Successfully registered for event",
                 201,
-                registration.to_dict()
+                {"registration": registration.to_dict()}
             )
 
         except ValueError:
@@ -190,7 +189,7 @@ class RegistrationController:
             return success_response(
                 "Registration details retrieved successfully",
                 200,
-                registration.to_dict()
+                {"registration": registration.to_dict()}
             )
 
         except ValueError:

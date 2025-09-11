@@ -15,6 +15,7 @@ import uuid
 from typing import Dict, Any, List, Optional
 
 from flask import request, g
+from pydantic import ValidationError
 
 from app.extensions import db
 from app.models.event import Event
@@ -22,6 +23,7 @@ from app.models.registration import Registration
 from app.models.attendance import Attendance
 from app.utils.helpers.http_response import success_response, error_response
 from app.utils.date_time import DateTimeUtils
+from app.schemas.attendance import MarkAttendanceRequest
 
 
 class AttendanceController:
@@ -31,23 +33,16 @@ class AttendanceController:
     def mark_attendance():
         """Mark attendance for a participant (Admin/Organizer only)."""
         try:
-            data = request.get_json()
-            if not data:
-                return error_response("No data provided", 400)
+            # Validate request data using Pydantic schema
+            payload = MarkAttendanceRequest.model_validate(request.get_json())
 
             # Get current user (admin/organizer)
             current_user = g.user
             if not current_user:
                 return error_response("Authentication required", 401)
 
-            # Validate required fields
-            required_fields = ['event_id', 'student_id']
-            for field in required_fields:
-                if field not in data:
-                    return error_response(f"{field} is required", 400)
-
-            event_uuid = uuid.UUID(data['event_id'])
-            student_uuid = uuid.UUID(data['student_id'])
+            event_uuid = payload.event_id
+            student_uuid = payload.student_id
 
             # Verify event exists and is approved
             event = Event.query.filter_by(
@@ -83,11 +78,10 @@ class AttendanceController:
                 return error_response("Attendance already marked for this student", 409)
 
             # Create attendance record
-            attendance = Attendance(
-                event_id=event_uuid,
-                student_id=student_uuid,
-                attended=True
-            )
+            attendance = Attendance()
+            attendance.event_id = event_uuid
+            attendance.student_id = student_uuid
+            attendance.attended = True
 
             db.session.add(attendance)
             db.session.commit()
@@ -95,9 +89,11 @@ class AttendanceController:
             return success_response(
                 "Attendance marked successfully",
                 201,
-                attendance.to_dict()
+                {"attendance": attendance.to_dict()}
             )
 
+        except ValidationError as e:
+            return error_response(f"Validation error: {str(e)}", 400)
         except ValueError:
             return error_response("Invalid ID format", 400)
         except Exception as e:

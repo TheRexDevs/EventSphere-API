@@ -16,6 +16,15 @@ from flask_pydantic_spec import Response
 from app.docs import spec, endpoint, QueryParameter, SecurityScheme
 from app.utils.decorators.auth import roles_required
 from app.schemas.common import ApiResponse
+from app.schemas.event import (
+    CreateEventRequest,
+    UpdateEventRequest,
+    EventResponse,
+    EventListResponse,
+    EventCategoriesResponse,
+    ApproveEventRequest,
+    PublishEventRequest
+)
 
 def register_routes(bp):
     """Register event management routes."""
@@ -24,6 +33,7 @@ def register_routes(bp):
     @bp.post("/events")
     @roles_required('admin', 'organizer')
     @endpoint(
+        request_body=CreateEventRequest,
         security=SecurityScheme.ADMIN_BEARER,
         tags=["Event Management"],
         summary="Create Event",
@@ -70,6 +80,7 @@ def register_routes(bp):
     @bp.put("/events/<string:event_id>")
     @roles_required('admin', 'organizer')
     @endpoint(
+        request_body=UpdateEventRequest,
         security=SecurityScheme.ADMIN_BEARER,
         tags=["Event Management"],
         summary="Update Event",
@@ -97,6 +108,7 @@ def register_routes(bp):
     @bp.post("/events/<string:event_id>/approve")
     @roles_required('admin')
     @endpoint(
+        request_body=ApproveEventRequest,
         security=SecurityScheme.ADMIN_BEARER,
         tags=["Event Management"],
         summary="Approve Event",
@@ -110,6 +122,7 @@ def register_routes(bp):
     @bp.post("/events/<string:event_id>/publish")
     @roles_required('admin', 'organizer')
     @endpoint(
+        request_body=PublishEventRequest,
         security=SecurityScheme.ADMIN_BEARER,
         tags=["Event Management"],
         summary="Publish/Unpublish Event",
