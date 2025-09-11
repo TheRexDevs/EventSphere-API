@@ -47,6 +47,32 @@ class Event(db.Model):
     
     organizer = db.relationship('AppUser', backref=db.backref('organized_events', lazy='dynamic'))
     media = db.relationship('Media', back_populates='event', lazy='dynamic', cascade='all, delete-orphan')
+    category = relationship("EventCategory", back_populates="events")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert event instance to dictionary representation."""
+        return {
+            'id': str(self.id),
+            'title': self.title,
+            'description': self.description,
+            'date': self.date.isoformat() if self.date else None,
+            'time': self.time.isoformat() if self.time else None,
+            'venue': self.venue,
+            'capacity': self.capacity,
+            'max_participants': self.max_participants,
+            'status': self.status,
+            'organizer_id': str(self.organizer_id) if self.organizer_id else None,
+            'organizer': {
+                'id': str(self.organizer.id),
+                'username': self.organizer.username,
+                'email': self.organizer.email,
+                'full_name': self.organizer.profile.full_name if self.organizer.profile else None
+            } if self.organizer else None,
+            'category_id': str(self.category_id) if self.category_id else None,
+            'category': self.category.name if self.category else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
 
 
 class EventCategory(db.Model):
@@ -55,7 +81,7 @@ class EventCategory(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
     description = db.Column(db.Text)
-    events = relationship("Event", backref="category_ref")
+    events = relationship("Event", back_populates="category")
 
 
 class EventShareLog(db.Model):

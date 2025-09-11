@@ -56,9 +56,9 @@ class TempUser(db.Model):
 class AppUser(db.Model, UserMixin):
     # from .role import UserRole
     
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    email = db.Column(db.String(255), nullable=True, unique=True)
-    username = db.Column(db.String(50), nullable=True, unique=True)
+    id: M[uuid.UUID] = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    email: M[str] = db.Column(db.String(255), nullable=True, unique=True)
+    username: M[str] = db.Column(db.String(50), nullable=True, unique=True)
     password_hash = db.Column(db.String(255), nullable=True)
     date_joined = db.Column(db.DateTime(timezone=True), default=DateTimeUtils.aware_utcnow)
     

@@ -36,3 +36,25 @@ class Attendance(db.Model):
     
     event = db.relationship('Event', backref=db.backref('attendances', lazy='dynamic'))
     student = db.relationship('AppUser', backref=db.backref('attendances', lazy='dynamic'))
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert attendance instance to dictionary representation."""
+        return {
+            'id': str(self.id),
+            'event_id': str(self.event_id),
+            'student_id': str(self.student_id),
+            'attended': self.attended,
+            'marked_on': self.marked_on.isoformat() if self.marked_on else None,
+            'event': {
+                'id': str(self.event.id),
+                'title': self.event.title,
+                'date': self.event.date.isoformat() if self.event.date else None,
+                'venue': self.event.venue
+            } if self.event else None,
+            'student': {
+                'id': str(self.student.id),
+                'username': self.student.username,
+                'email': self.student.email,
+                'full_name': self.student.profile.full_name if self.student.profile else None
+            } if self.student else None,
+        }

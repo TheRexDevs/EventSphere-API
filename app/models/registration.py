@@ -36,3 +36,27 @@ class Registration(db.Model):
     
     event = db.relationship('Event', backref=db.backref('registrations', lazy='dynamic'))
     student = db.relationship('AppUser', backref=db.backref('registrations', lazy='dynamic'))
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert registration instance to dictionary representation."""
+        return {
+            'id': str(self.id),
+            'event_id': str(self.event_id),
+            'student_id': str(self.student_id),
+            'registered_on': self.registered_on.isoformat() if self.registered_on else None,
+            'status': self.status,
+            'event': {
+                'id': str(self.event.id),
+                'title': self.event.title,
+                'date': self.event.date.isoformat() if self.event.date else None,
+                'time': self.event.time.isoformat() if self.event.time else None,
+                'venue': self.event.venue,
+                'organizer': self.event.organizer.username if self.event.organizer else None
+            } if self.event else None,
+            'student': {
+                'id': str(self.student.id),
+                'username': self.student.username,
+                'email': self.student.email,
+                'full_name': self.student.profile.full_name if self.student.profile else None
+            } if self.student else None,
+        }

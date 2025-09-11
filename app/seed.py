@@ -6,6 +6,7 @@ from .extensions import db
 from .models.user import AppUser, Profile, Address
 from .models.wallet import Wallet
 from .models.role import Role, UserRole
+from .models.event import EventCategory
 from .logging import log_event
 
 from .enums.auth import RoleNames
@@ -80,7 +81,7 @@ def seed_roles(clear: bool = False) -> None:
             # Clear existing roles before creating new ones
             Role.query.delete()
             db.session.commit()
-        
+
         for role_name in RoleNames:
             if not Role.query.filter_by(name=role_name).first():
                 new_role = Role()
@@ -89,7 +90,43 @@ def seed_roles(clear: bool = False) -> None:
                 db.session.add(new_role)
         db.session.commit()
 
+
+def seed_event_categories(clear: bool = False) -> None:
+    """Seed database with default event categories.
+
+    Args:
+        clear (bool, optional): If True, clears all existing categories before seeding. (Defaults to False).
+    """
+    if inspect(db.engine).has_table("event_category"):
+        if clear:
+            # Clear existing categories before creating new ones
+            EventCategory.query.delete()
+            db.session.commit()
+
+        default_categories = [
+            {"name": "Technical", "description": "Technical workshops, hackathons, and coding events"},
+            {"name": "Cultural", "description": "Cultural festivals, music, dance, and art events"},
+            {"name": "Sports", "description": "Sports competitions and athletic events"},
+            {"name": "Academic", "description": "Academic seminars, conferences, and educational events"},
+            {"name": "Entertainment", "description": "Entertainment shows, concerts, and recreational events"},
+            {"name": "Workshop", "description": "Hands-on workshops and training sessions"},
+            {"name": "Seminar", "description": "Educational seminars and lectures"},
+            {"name": "Competition", "description": "Competitions and contests"}
+        ]
+
+        for category_data in default_categories:
+            if not EventCategory.query.filter_by(name=category_data["name"]).first():
+                category = EventCategory()
+                category.name = category_data["name"]
+                category.description = category_data["description"]
+                
+                db.session.add(category)
+
+        db.session.commit()
+        log_event("Event categories seeded successfully", event_type="seeding")
+
 def seed_database(app: Flask) -> None:
     with app.app_context():
         seed_roles()
         seed_admin_user()
+        seed_event_categories()
