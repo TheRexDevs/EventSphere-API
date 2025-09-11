@@ -4,9 +4,9 @@ from enum import Enum
 class RoleNames(Enum):
     """ENUMS for the name filed in Role Model"""
     ADMIN = "Admin"
+    ORGANIZER = "Organizer"
     VISITOR = "Visitor"
     PARTICIPANT = "Participant"
-    ORGANIZER = "Organizer"
 
     @classmethod
     def get_member_by_value(cls, value):
