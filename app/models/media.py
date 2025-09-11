@@ -37,6 +37,8 @@ class Media(db.Model):
 
     # Relationships
     event_id: M[uuid.UUID] = db.Column(UUID(as_uuid=True), ForeignKey('event.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    event: M["Event"] = relationship("Event", back_populates="media")
     
 
     # File Information
@@ -73,7 +75,6 @@ class Media(db.Model):
     updated_at: M[datetime] = db.Column(db.DateTime(timezone=True), default=DateTimeUtils.aware_utcnow, onupdate=DateTimeUtils.aware_utcnow)
 
     # Relationships
-    Event: M["Event"] = relationship("Event", back_populates="media")
 
     def __repr__(self) -> str:
         return f"<Media {self.id}, {self.filename} ({self.file_type})>"
@@ -125,6 +126,10 @@ class Media(db.Model):
         """Mark or un-mark media as featured."""
         self.is_featured = featured
         db.session.commit()
+
+    def get_path(self) -> str:
+        """Get the public URL path for the media file."""
+        return self.file_url or ""
 
     @staticmethod
     def get_event_media(
