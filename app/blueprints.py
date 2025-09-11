@@ -36,15 +36,6 @@ def register_blueprints(app: Flask) -> None:
     # Register the root API blueprint
     app.register_blueprint(api_bp)
 
-    # Swagger setup
-    try:
-        from flask_swagger_ui import get_swaggerui_blueprint
-        swagger_url: str = '/api/swagger'
-        api_url: str = '/static/swagger.json'
-        swaggerui_blueprint: Blueprint = get_swaggerui_blueprint(swagger_url, api_url)
-        app.register_blueprint(swaggerui_blueprint, url_prefix=swagger_url)
-    except Exception:  # Optional dependency
-        app.logger.warning("Swagger UI not configured; skipping docs blueprint")
 
 def register_sub_blueprints(bp: Blueprint, blueprints: List[Blueprint]):
     for sub_bp in blueprints:

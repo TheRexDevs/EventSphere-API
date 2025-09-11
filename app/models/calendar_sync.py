@@ -1,0 +1,40 @@
+"""
+CalendarSync model
+
+Author: Emmanuel Olowu
+Link: https://github.com/zeddyemy
+Package: EventSphere
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+
+from sqlalchemy import UUID, ForeignKey
+from sqlalchemy.orm import Mapped as M, relationship
+
+from app.extensions import db
+from app.utils.date_time import DateTimeUtils
+
+# Forward declarations for type hints
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .user import AppUser
+    from .event import Event
+
+
+class CalendarSync(db.Model):
+    __tablename__ = "calendar_sync"
+    
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('app_user.id'), nullable=False)
+    event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('event.id'), nullable=False)
+    
+    calendar_type = db.Column(db.String(20), nullable=False) # Google, Outlook, Apple
+    sync_timestamp = db.Column(db.DateTime(timezone=True), default=DateTimeUtils.aware_utcnow)
+    calendar_url = db.Column(db.String(255))
+    
+    event = db.relationship('Event', backref=db.backref('calendar_syncs', lazy='dynamic'))
+    student = db.relationship('AppUser', backref=db.backref('calendar_syncs', lazy='dynamic'))

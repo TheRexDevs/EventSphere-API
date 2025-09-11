@@ -198,6 +198,8 @@ class Profile(db.Model):
     lastname = db.Column(db.String(200), nullable=True)
     gender = db.Column(db.String(50), nullable=True)
     phone = db.Column(db.String(120), nullable=True)
+    enrollment_no = db.Column(db.String(50), nullable=True)
+    department = db.Column(db.String(100), nullable=True)
     profile_picture_id = db.Column(UUID(as_uuid=True), db.ForeignKey('media.id'), nullable=True)
     
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('app_user.id', ondelete='CASCADE'), nullable=False,)
