@@ -145,7 +145,7 @@ class AuthController:
         user_address = Address()
         user_address.user_id = new_user.id
 
-        role = Role.query.filter_by(name=RoleNames.CUSTOMER).first()
+        role = Role.query.filter_by(name=RoleNames.PARTICIPANT).first()
         if role:
             from app.models.role import UserRole
             UserRole.assign_role(new_user, role, commit=False)

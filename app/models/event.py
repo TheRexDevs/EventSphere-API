@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .user import AppUser
     from .event import Event
+    from .media import Media
 
 
 
@@ -46,11 +47,61 @@ class Event(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True), default=DateTimeUtils.aware_utcnow, onupdate=DateTimeUtils.aware_utcnow)
     
     organizer = db.relationship('AppUser', backref=db.backref('organized_events', lazy='dynamic'))
-    media = db.relationship('Media', back_populates='event', lazy='dynamic', cascade='all, delete-orphan')
+    media = db.relationship('Media', back_populates='event', lazy='dynamic', cascade='all, delete-orphan', foreign_keys='Media.event_id')
     category = relationship("EventCategory", back_populates="events")
+
+    # Image fields for featured image and gallery
+    featured_image_id = db.Column(UUID(as_uuid=True), db.ForeignKey('media.id'), nullable=True)
+    featured_image = db.relationship('Media', foreign_keys=[featured_image_id], lazy='joined')
+
+    @property
+    def safe_media_list(self) -> List["Media"]:
+        """Safely get media list, handling lazy loading."""
+        try:
+            if hasattr(self, 'media') and self.media is not None:
+                if hasattr(self.media, 'all'):
+                    # For dynamic relationships
+                    return self.media.all()  # type: ignore
+                else:
+                    # For already loaded collections or other iterables
+                    result = []
+                    media_collection = self.media  # type: ignore
+                    for item in media_collection:  # type: ignore
+                        result.append(item)
+                    return result
+        except (AttributeError, TypeError):
+            pass
+        return []
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event instance to dictionary representation."""
+        # Get featured image
+        featured_image = None
+        if hasattr(self, 'featured_image') and self.featured_image:
+            featured_image = {
+                'id': str(self.featured_image.id),
+                'url': self.featured_image.file_url,
+                'thumbnail_url': self.featured_image.thumbnail_url,
+                'filename': self.featured_image.filename,
+                'width': self.featured_image.width,
+                'height': self.featured_image.height,
+            }
+
+        # Get gallery images (all media except featured)
+        gallery_images = []
+        for media in self.safe_media_list:
+            if hasattr(media, 'is_featured') and not media.is_featured:  # Exclude featured image from gallery
+                gallery_images.append({
+                    'id': str(media.id),
+                    'url': media.file_url,
+                    'thumbnail_url': media.thumbnail_url,
+                    'filename': media.filename,
+                    'width': media.width,
+                    'height': media.height,
+                    'file_type': media.file_type,
+                    'created_at': media.created_at.isoformat() if media.created_at else None,
+                })
+
         return {
             'id': str(self.id),
             'title': self.title,
@@ -70,6 +121,8 @@ class Event(db.Model):
             } if self.organizer else None,
             'category_id': str(self.category_id) if self.category_id else None,
             'category': self.category.name if self.category else None,
+            'featured_image': featured_image,
+            'gallery_images': gallery_images,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

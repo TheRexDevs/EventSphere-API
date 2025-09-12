@@ -22,6 +22,7 @@ from pydantic import ValidationError
 
 from app.extensions import db
 from app.models.event import Event, EventCategory
+from app.models.media import Media
 from app.models.user import AppUser
 from app.utils.helpers.http_response import success_response, error_response
 from app.utils.date_time import DateTimeUtils
@@ -60,9 +61,27 @@ class EventController:
                 if category:
                     event.category_id = payload.category_id
 
+            # Handle featured image and gallery images
+            if payload.featured_image_url:
+                # Find or create media entry for featured image
+                featured_media = Media.query.filter_by(file_url=payload.featured_image_url).first()
+                if featured_media:
+                    event.featured_image_id = featured_media.id
+                    featured_media.mark_featured(True)
+
+            # Handle gallery images
+            if payload.gallery_image_urls:
+                for image_url in payload.gallery_image_urls:
+                    gallery_media = Media.query.filter_by(file_url=image_url).first()
+                    if gallery_media and gallery_media.event_id == event.id:
+                        # Mark as not featured (gallery image)
+                        gallery_media.mark_featured(False)
+
             db.session.add(event)
             db.session.commit()
 
+            # Reload event with media relationships for proper serialization
+            db.session.refresh(event)
             return success_response(
                 "Event created successfully. Pending admin approval.",
                 201,
@@ -192,9 +211,36 @@ class EventController:
                 if category:
                     event.category_id = payload.category_id
 
+            # Handle featured image update
+            if payload.featured_image_url is not None:
+                if payload.featured_image_url:
+                    # Find or create media entry for featured image
+                    featured_media = Media.query.filter_by(file_url=payload.featured_image_url).first()
+                    if featured_media:
+                        event.featured_image_id = featured_media.id
+                        featured_media.mark_featured(True)
+                else:
+                    # Remove featured image
+                    event.featured_image_id = None
+
+            # Handle gallery images update
+            if payload.gallery_image_urls is not None:
+                # Reset all current gallery images to not featured
+                for media in event.safe_media_list:
+                    if hasattr(media, 'is_featured') and not media.is_featured:
+                        media.mark_featured(False)
+
+                # Mark new gallery images
+                for image_url in payload.gallery_image_urls:
+                    gallery_media = Media.query.filter_by(file_url=image_url).first()
+                    if gallery_media and gallery_media.event_id == event.id:
+                        gallery_media.mark_featured(False)  # Ensure it's marked as gallery image
+
             event.updated_at = DateTimeUtils.aware_utcnow()
             db.session.commit()
 
+            # Reload event with media relationships for proper serialization
+            db.session.refresh(event)
             return success_response(
                 "Event updated successfully",
                 200,

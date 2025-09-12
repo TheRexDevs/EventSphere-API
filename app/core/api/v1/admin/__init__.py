@@ -1,5 +1,5 @@
 from flask import Blueprint
-from .routes import system, event, attendance, certificate, feedback
+from .routes import system, event, attendance, certificate, feedback, user_management
 
 def create_v1_admin_api_blueprint():
     bp = Blueprint("v1_admin_api", __name__, url_prefix="/admin")
@@ -8,4 +8,5 @@ def create_v1_admin_api_blueprint():
     attendance.register_routes(bp)
     certificate.register_routes(bp)
     feedback.register_routes(bp)
+    user_management.register_routes(bp)
     return bp

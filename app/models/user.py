@@ -58,7 +58,7 @@ class AppUser(db.Model, UserMixin):
     
     id: M[uuid.UUID] = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     email: M[str] = db.Column(db.String(255), nullable=True, unique=True)
-    username: M[str] = db.Column(db.String(50), nullable=True, unique=True)
+    username: M[Optional[str]] = db.Column(db.String(50), nullable=True, unique=True)
     password_hash = db.Column(db.String(255), nullable=True)
     date_joined = db.Column(db.DateTime(timezone=True), default=DateTimeUtils.aware_utcnow)
     

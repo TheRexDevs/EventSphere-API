@@ -24,7 +24,7 @@ from app.utils.date_time import DateTimeUtils
 # Forward declarations for type hints
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .Event import Event
+    from .event import Event
 
 
 class Media(db.Model):
@@ -38,7 +38,7 @@ class Media(db.Model):
     # Relationships
     event_id: M[uuid.UUID] = db.Column(UUID(as_uuid=True), ForeignKey('event.id', ondelete='CASCADE'), nullable=False, index=True)
 
-    event: M["Event"] = relationship("Event", back_populates="media")
+    event: M["Event"] = relationship("Event", back_populates="media", foreign_keys=[event_id])
     
 
     # File Information

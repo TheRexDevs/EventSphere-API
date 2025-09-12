@@ -51,6 +51,10 @@ class CreateEventRequest(BaseModel):
     max_participants: int = Field(0, ge=0, description="Maximum participants (0 for unlimited)")
     category_id: Optional[uuid.UUID] = None
 
+    # Image fields
+    featured_image_url: Optional[str] = Field(None, description="URL of the featured image")
+    gallery_image_urls: List[str] = Field(default_factory=list, description="List of gallery image URLs")
+
     @field_validator('date')
     def validate_date(cls, v: str) -> str:
         """Validate date format."""
@@ -82,6 +86,10 @@ class UpdateEventRequest(BaseModel):
     max_participants: Optional[int] = Field(None, ge=0, description="Maximum participants (0 for unlimited)")
     category_id: Optional[uuid.UUID] = None
 
+    # Image fields
+    featured_image_url: Optional[str] = Field(None, description="URL of the featured image")
+    gallery_image_urls: Optional[List[str]] = Field(None, description="List of gallery image URLs")
+
     @field_validator('date')
     def validate_date(cls, v: Optional[str]) -> Optional[str]:
         """Validate date format."""
@@ -105,6 +113,19 @@ class UpdateEventRequest(BaseModel):
         return v
 
 
+class EventImageResponse(BaseModel):
+    """Response schema for event images."""
+
+    id: uuid.UUID
+    url: str
+    thumbnail_url: Optional[str]
+    filename: str
+    width: Optional[int]
+    height: Optional[int]
+
+    model_config = {"from_attributes": True}
+
+
 class EventResponse(BaseModel):
     """Response schema for event details."""
 
@@ -121,6 +142,8 @@ class EventResponse(BaseModel):
     organizer: Optional[EventOrganizerResponse]
     category_id: Optional[uuid.UUID]
     category: Optional[str]
+    featured_image: Optional[EventImageResponse]
+    gallery_images: List[EventImageResponse] = Field(default_factory=list)
     created_at: Optional[str]
     updated_at: Optional[str]
 
