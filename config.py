@@ -12,7 +12,7 @@ class Config:
     DEBUG = (ENV == "development")  # Enable debug mode only in development
     EMERGENCY_MODE = os.getenv("EMERGENCY_MODE") or os.environ.get("EMERGENCY_MODE") or False
     
-    CLIENT_ORIGINS = os.getenv("CLIENT_ORIGINS") or os.environ.get("CLIENT_ORIGINS") or "http://localhost:3000,http://localhost:2007,http://localhost:5173,http://localhost:5000"
+    CLIENT_ORIGINS = os.getenv("CLIENT_ORIGINS") or os.environ.get("CLIENT_ORIGINS") or "http://localhost:3000,http://localhost:3002,http://localhost:5173,http://localhost:5000"
     CLIENT_ORIGINS = [origin.strip() for origin in CLIENT_ORIGINS.split(",")]
     
     SEED_DB = True

@@ -117,7 +117,7 @@ class Event(db.Model):
                 'id': str(self.organizer.id),
                 'username': self.organizer.username,
                 'email': self.organizer.email,
-                'full_name': self.organizer.profile.full_name if self.organizer.profile else None
+                'full_name': self.organizer.full_name if hasattr(self.organizer, 'full_name') else None
             } if self.organizer else None,
             'category_id': str(self.category_id) if self.category_id else None,
             'category': self.category.name if self.category else None,
