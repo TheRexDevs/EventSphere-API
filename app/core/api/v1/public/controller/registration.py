@@ -21,6 +21,8 @@ from app.models.event import Event
 from app.models.registration import Registration
 from app.utils.helpers.http_response import success_response, error_response
 from app.utils.date_time import DateTimeUtils
+from app.logging import log_error
+from app.utils.helpers.user import get_current_user
 
 
 class RegistrationController:
@@ -31,13 +33,13 @@ class RegistrationController:
         """Register the current user for an event."""
         try:
             event_uuid = uuid.UUID(event_id)
-            current_user = g.user
+            current_user = get_current_user()
 
             if not current_user:
                 return error_response("Authentication required", 401)
 
             # Check if event exists and is approved
-            event = Event.query.filter_by(
+            event: Event | None = Event.query.filter_by(
                 id=event_uuid,
                 status='approved'
             ).first()
@@ -89,6 +91,7 @@ class RegistrationController:
             return error_response("Invalid event ID format", 400)
         except Exception as e:
             db.session.rollback()
+            log_error("Failed to register", e)
             return error_response(f"Failed to register: {str(e)}", 500)
 
     @staticmethod
@@ -96,7 +99,7 @@ class RegistrationController:
         """Cancel registration for an event."""
         try:
             event_uuid = uuid.UUID(event_id)
-            current_user = g.user
+            current_user = get_current_user()
 
             if not current_user:
                 return error_response("Authentication required", 401)
@@ -127,7 +130,7 @@ class RegistrationController:
     def get_user_registrations():
         """Get current user's registrations."""
         try:
-            current_user = g.user
+            current_user = get_current_user()
 
             if not current_user:
                 return error_response("Authentication required", 401)
@@ -172,7 +175,7 @@ class RegistrationController:
         """Get details of a specific registration."""
         try:
             registration_uuid = uuid.UUID(registration_id)
-            current_user = g.user
+            current_user = get_current_user()
 
             if not current_user:
                 return error_response("Authentication required", 401)

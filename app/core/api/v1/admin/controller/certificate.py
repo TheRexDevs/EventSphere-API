@@ -16,7 +16,7 @@ import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from flask import request, g, current_app
+from flask import request, current_app
 
 from app.extensions import db
 from app.models.event import Event
@@ -27,6 +27,8 @@ from app.utils.helpers.http_response import success_response, error_response
 from app.utils.date_time import DateTimeUtils
 from app.utils.certificate_generator import certificate_generator
 from app.schemas.certificate import GenerateCertificateRequest, BulkGenerateCertificatesRequest
+from app.utils.helpers.user import get_current_user
+from app.logging import log_error
 
 
 class CertificateController:
@@ -40,7 +42,7 @@ class CertificateController:
             payload = GenerateCertificateRequest.model_validate(request.get_json())
 
             # Get current user (admin/organizer)
-            current_user = g.user
+            current_user = get_current_user()
             if not current_user:
                 return error_response("Authentication required", 401)
 
@@ -54,8 +56,7 @@ class CertificateController:
                 return error_response("Event not found or not approved", 404)
 
             # Check permissions
-            if (event.organizer_id != current_user.id and
-                current_user.role != 'admin'):
+            if (event.organizer_id != current_user.id):
                 return error_response("Insufficient permissions", 403)
 
             certificates = []
@@ -124,6 +125,7 @@ class CertificateController:
 
         except Exception as e:
             db.session.rollback()
+            log_error("Failed to generate certificates", e)
             return error_response(f"Failed to generate certificates: {str(e)}", 500)
 
     @staticmethod
@@ -131,7 +133,7 @@ class CertificateController:
         """Get all certificates for an event (Admin/Organizer only)."""
         try:
             event_uuid = uuid.UUID(event_id)
-            current_user = g.user
+            current_user = get_current_user()
 
             if not current_user:
                 return error_response("Authentication required", 401)
@@ -142,8 +144,7 @@ class CertificateController:
                 return error_response("Event not found", 404)
 
             # Check permissions
-            if (event.organizer_id != current_user.id and
-                current_user.role != 'admin'):
+            if (event.organizer_id != current_user.id):
                 return error_response("Insufficient permissions", 403)
 
             # Get query parameters
@@ -178,6 +179,7 @@ class CertificateController:
         except ValueError:
             return error_response("Invalid event ID format", 400)
         except Exception as e:
+            log_error("Failed to retrieve certificates", e)
             return error_response(f"Failed to retrieve certificates: {str(e)}", 500)
 
     @staticmethod
@@ -188,7 +190,7 @@ class CertificateController:
             payload = BulkGenerateCertificatesRequest.model_validate(request.get_json())
 
             # Get current user (admin/organizer)
-            current_user = g.user
+            current_user = get_current_user()
             if not current_user:
                 return error_response("Authentication required", 401)
 
@@ -202,8 +204,7 @@ class CertificateController:
                 return error_response("Event not found or not approved", 404)
 
             # Check permissions
-            if (event.organizer_id != current_user.id and
-                current_user.role != 'admin'):
+            if (event.organizer_id != current_user.id):
                 return error_response("Insufficient permissions", 403)
 
             # Determine which students to generate certificates for
@@ -258,7 +259,7 @@ class CertificateController:
 
                     student_data = {
                         'username': registration.student.username,
-                        'full_name': registration.student.profile.full_name if registration.student.profile else registration.student.username
+                        'full_name': registration.student.full_name if hasattr(registration.student, 'full_name') else registration.student.username
                     }
 
                     # Generate PDF
@@ -302,4 +303,5 @@ class CertificateController:
 
         except Exception as e:
             db.session.rollback()
+            log_error("Failed to generate certificates", e)
             return error_response(f"Failed to generate certificates: {str(e)}", 500)

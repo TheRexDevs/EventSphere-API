@@ -19,7 +19,9 @@ from app.seed import (
     seed_admin_user,
     seed_event_categories,
     seed_organizer_user,
-    seed_sample_events
+    seed_participant_user,
+    seed_sample_events,
+    seed_sample_registrations
 )
 from app.logging import log_event
 
@@ -43,18 +45,29 @@ def main():
         print("🎭 Seeding organizer user...")
         seed_organizer_user()
 
+        print("👤 Seeding participant user...")
+        seed_participant_user()
+
         print("🎪 Seeding sample events...")
         seed_sample_events()
+
+        print("📝 Seeding sample registrations...")
+        seed_sample_registrations()
 
     print("✅ Database seeding completed successfully!")
     print("\n📝 Default Credentials:")
     print("   Admin: admin@admin.com / admin123")
     print("   Organizer: organizer@example.com / organizer123")
+    print("   Participant: participant@example.com / participant123")
     print("\n🎯 Sample Events Created:")
     print("   - Python Workshop 2024")
     print("   - AI & Machine Learning Conference")
     print("   - Cultural Festival 2024")
     print("   - Web Development Bootcamp")
+    print("\n👤 Participant Activities:")
+    print("   - Registered for Python Workshop 2024 (Attended)")
+    print("   - Registered for AI Conference (Not attended)")
+    print("   - Pending registration for Cultural Festival")
 
 if __name__ == "__main__":
     main()

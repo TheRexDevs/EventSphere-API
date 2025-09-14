@@ -19,6 +19,8 @@ from app.schemas.common import ApiResponse
 from app.schemas.event import (
     CreateEventRequest,
     UpdateEventRequest,
+    CreateEventWithFilesRequest,
+    UpdateEventWithFilesRequest,
     EventResponse,
     EventListResponse,
     EventCategoriesResponse,

@@ -19,6 +19,8 @@ from app.extensions import db
 from app.models.event import Event
 from app.models.feedback import Feedback
 from app.utils.helpers.http_response import success_response, error_response
+from app.utils.helpers.user import get_current_user
+from app.logging import log_error
 
 
 class AdminFeedbackController:
@@ -29,7 +31,7 @@ class AdminFeedbackController:
         """Get all feedback for a specific event (Admin/Organizer only)."""
         try:
             event_uuid = uuid.UUID(event_id)
-            current_user = g.user
+            current_user = get_current_user()
 
             if not current_user:
                 return error_response("Authentication required", 401)
@@ -40,8 +42,7 @@ class AdminFeedbackController:
                 return error_response("Event not found", 404)
 
             # Check permissions
-            if (event.organizer_id != current_user.id and
-                current_user.role != 'admin'):
+            if (event.organizer_id != current_user.id):
                 return error_response("Insufficient permissions", 403)
 
             # Get query parameters
@@ -120,9 +121,9 @@ class AdminFeedbackController:
     def get_feedback_stats():
         """Get overall feedback statistics (Admin only)."""
         try:
-            current_user = g.user
+            current_user = get_current_user()
 
-            if not current_user or current_user.role != 'admin':
+            if not current_user:
                 return error_response("Admin access required", 403)
 
             # Get query parameters
@@ -194,4 +195,5 @@ class AdminFeedbackController:
             )
 
         except Exception as e:
+            log_error("Failed to retrieve feedback statistics", e)
             return error_response(f"Failed to retrieve feedback statistics: {str(e)}", 500)

@@ -7,7 +7,10 @@ from .models.user import AppUser, Profile, Address
 from .models.wallet import Wallet
 from .models.role import Role, UserRole
 from .models.event import Event, EventCategory
+from .models.registration import Registration
+from .models.attendance import Attendance
 from .logging import log_event
+from .utils.date_time import DateTimeUtils
 
 from .enums.auth import RoleNames
 
@@ -81,7 +84,7 @@ def seed_roles(clear: bool = False) -> None:
             # Clear existing roles before creating new ones
             Role.query.delete()
             db.session.commit()
-
+        
         for role_name in RoleNames:
             if not Role.query.filter_by(name=role_name).first():
                 new_role = Role()
@@ -293,10 +296,156 @@ def seed_sample_events(clear: bool = False) -> None:
         log_event(f"Sample events seeded successfully: {len(sample_events)} events created", event_type="seeding")
 
 
+def seed_participant_user(clear: bool = False) -> None:
+    """
+    Seed the database with a default Participant User.
+
+    Args:
+        clear (bool): If True, clear existing participant before seeding.
+    """
+    if inspect(db.engine).has_table("role"):
+        participant_role = Role.query.filter_by(name=RoleNames.PARTICIPANT).first()
+        if not participant_role:
+            participant_role = Role()
+            participant_role.name = RoleNames.PARTICIPANT
+            participant_role.slug = slugify(RoleNames.PARTICIPANT.value)
+            db.session.add(participant_role)
+            db.session.commit()
+
+    if inspect(db.engine).has_table("app_user"):
+        participant = (
+            AppUser.query
+            .join(UserRole, AppUser.id == UserRole.app_user_id)
+            .join(Role, UserRole.role_id == Role.id)
+            .filter(Role.name == RoleNames.PARTICIPANT)
+            .first()
+        )
+
+        if clear and participant:
+            participant.delete()
+            db.session.close()
+            log_event("Participant deleted successfully")
+            return
+
+        if not participant:
+            participant_user = AppUser()
+            participant_user.username = "participant"
+            participant_user.email = "participant@example.com"
+            participant_user.password = "participant123"
+
+            db.session.add(participant_user)
+            db.session.flush()  # ensure participant_user.id
+
+            participant_profile = Profile()
+            participant_profile.firstname = "Jane"
+            participant_profile.lastname = "Smith"
+            participant_profile.user_id = participant_user.id
+
+            participant_address = Address()
+            participant_address.state = "Participant State"
+            participant_address.country = "Participant Country"
+            participant_address.user_id = participant_user.id
+
+            participant_wallet = Wallet()
+            participant_wallet.user_id = participant_user.id
+
+            db.session.add_all([participant_profile, participant_address, participant_wallet])
+            db.session.commit()
+
+            UserRole.assign_role(participant_user, participant_role)
+            log_event("Participant user created with default credentials", event_type="seeding")
+        else:
+            log_event("Participant user already exists", event_type="seeding")
+
+
+def seed_sample_registrations(clear: bool = False) -> None:
+    """
+    Seed the database with sample registrations and attendance for the participant user.
+
+    Args:
+        clear (bool): If True, clear existing registrations and attendance before seeding.
+    """
+    if inspect(db.engine).has_table("registration") and inspect(db.engine).has_table("attendance"):
+        if clear:
+            Attendance.query.delete()
+            Registration.query.delete()
+            db.session.commit()
+
+        # Get participant user
+        participant = (
+            AppUser.query
+            .join(UserRole, AppUser.id == UserRole.app_user_id)
+            .join(Role, UserRole.role_id == Role.id)
+            .filter(Role.name == RoleNames.PARTICIPANT)
+            .first()
+        )
+
+        if not participant:
+            log_event("No participant found, skipping registration seeding", event_type="seeding")
+            return
+
+        # Get some sample events
+        events = Event.query.limit(3).all()
+
+        if not events:
+            log_event("No events found, skipping registration seeding", event_type="seeding")
+            return
+
+        sample_registrations = [
+            {
+                "event": events[0],
+                "status": "confirmed",
+                "attended": True
+            },
+            {
+                "event": events[1] if len(events) > 1 else events[0],
+                "status": "confirmed",
+                "attended": False
+            },
+            {
+                "event": events[2] if len(events) > 2 else events[0],
+                "status": "pending",
+                "attended": False
+            }
+        ]
+
+        for reg_data in sample_registrations:
+            # Check if registration already exists
+            existing_reg = Registration.query.filter_by(
+                event_id=reg_data["event"].id,
+                student_id=participant.id
+            ).first()
+
+            if not existing_reg:
+                registration = Registration()
+                registration.event_id = reg_data["event"].id
+                registration.student_id = participant.id
+                registration.status = reg_data["status"]
+                registration.registered_on = DateTimeUtils.aware_utcnow()
+
+                db.session.add(registration)
+                db.session.flush()  # ensure registration.id
+
+                # Create attendance record if attended
+                if reg_data["attended"]:
+                    attendance = Attendance()
+                    attendance.event_id = reg_data["event"].id
+                    attendance.student_id = participant.id
+                    attendance.attended = True
+                    attendance.marked_on = DateTimeUtils.aware_utcnow()
+
+                    db.session.add(attendance)
+
+        db.session.commit()
+        log_event(f"Sample registrations and attendance seeded successfully for participant: {participant.username}", event_type="seeding")
+
+
 def seed_database(app: Flask) -> None:
     with app.app_context():
         seed_roles()
         seed_admin_user()
         seed_event_categories()
         seed_organizer_user()
+        seed_participant_user()
         seed_sample_events()
+        seed_sample_registrations()

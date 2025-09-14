@@ -29,7 +29,6 @@ def register_routes(bp):
     @bp.post("/events/<string:event_id>/register")
     @roles_required('participant')
     @endpoint(
-        request_body=RegisterForEventRequest,
         security=SecurityScheme.PUBLIC_BEARER,
         tags=["Event Registration"],
         summary="Register for Event",

@@ -12,12 +12,10 @@ Package: EventSphere
 from __future__ import annotations
 
 import uuid
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
-from flask import request, g
+from flask import request
 from sqlalchemy import or_, and_, func
-from sqlalchemy.orm import joinedload
 from pydantic import ValidationError
 
 from app.extensions import db
@@ -32,6 +30,8 @@ from app.schemas.user_management import (
     UpdateUserProfileRequest, UpdateUserAddressRequest,
     UserSummary
 )
+from app.utils.helpers.user import get_current_user
+from app.logging import log_error
 
 
 class UserManagementController:
@@ -152,7 +152,7 @@ class UserManagementController:
             user_uuid = uuid.UUID(user_id)
 
             # Get current user (admin performing the action)
-            current_user = g.user
+            current_user = get_current_user()
             if not current_user:
                 return error_response("Authentication required", 401)
 
@@ -198,6 +198,7 @@ class UserManagementController:
         except ValueError:
             return error_response("Invalid user ID format", 400)
         except Exception as e:
+            log_error("Failed to update user roles", e)
             return error_response(f"Error updating user roles: {str(e)}", 500)
 
     @staticmethod
@@ -227,6 +228,7 @@ class UserManagementController:
         except ValueError:
             return error_response("Invalid user ID format", 400)
         except Exception as e:
+            log_error("Failed to update user status", e)
             return error_response(f"Error updating user status: {str(e)}", 500)
 
     @staticmethod
@@ -266,6 +268,7 @@ class UserManagementController:
         except ValueError:
             return error_response("Invalid user ID format", 400)
         except Exception as e:
+            log_error("Failed to update user profile", e)
             return error_response(f"Error updating user profile: {str(e)}", 500)
 
     @staticmethod
@@ -305,6 +308,7 @@ class UserManagementController:
         except ValueError:
             return error_response("Invalid user ID format", 400)
         except Exception as e:
+            log_error("Failed to update user address", e)
             return error_response(f"Error updating user address: {str(e)}", 500)
 
     @staticmethod
@@ -347,4 +351,5 @@ class UserManagementController:
             return success_response("User statistics retrieved successfully", 200, stats.model_dump())
 
         except Exception as e:
+            log_error("Failed to retrieve user statistics", e)
             return error_response(f"Error retrieving user statistics: {str(e)}", 500)

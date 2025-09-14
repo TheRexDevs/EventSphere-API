@@ -68,9 +68,13 @@ class CreateEventRequest(BaseModel):
     def validate_time(cls, v: str) -> str:
         """Validate time format."""
         try:
-            datetime.strptime(v, '%H:%M:%S')
+            # Try both formats: HH:MM:SS and HH:MM
+            try:
+                datetime.strptime(v, '%H:%M:%S')
+            except ValueError:
+                datetime.strptime(v, '%H:%M')
         except ValueError:
-            raise ValueError('Invalid time format. Use HH:MM:SS')
+            raise ValueError('Invalid time format. Use HH:MM:SS or HH:MM')
         return v
 
 
@@ -107,9 +111,13 @@ class UpdateEventRequest(BaseModel):
         if v is None:
             return v
         try:
-            datetime.strptime(v, '%H:%M:%S')
+            # Try both formats: HH:MM:SS and HH:MM
+            try:
+                datetime.strptime(v, '%H:%M:%S')
+            except ValueError:
+                datetime.strptime(v, '%H:%M')
         except ValueError:
-            raise ValueError('Invalid time format. Use HH:MM:SS')
+            raise ValueError('Invalid time format. Use HH:MM:SS or HH:MM')
         return v
 
 
@@ -179,3 +187,77 @@ class PublishEventRequest(BaseModel):
 
     # No additional fields needed, publish status toggle
     pass
+
+
+class CreateEventWithFilesRequest(BaseModel):
+    """Request schema for creating events with file uploads (FormData)."""
+
+    title: str = Field(..., min_length=1, max_length=150, description="Event title")
+    description: str = Field(..., min_length=1, description="Event description")
+    date: str = Field(..., description="ISO format date string (YYYY-MM-DD)")
+    time: str = Field(..., description="ISO format time string (HH:MM:SS)")
+    venue: str = Field(..., min_length=1, max_length=100, description="Event venue")
+    capacity: int = Field(0, ge=0, description="Maximum capacity (0 for unlimited)")
+    max_participants: int = Field(0, ge=0, description="Maximum participants (0 for unlimited)")
+    category_id: Optional[str] = Field(None, description="Event category UUID as string")
+
+    @field_validator('date')
+    def validate_date(cls, v: str) -> str:
+        """Validate date format."""
+        try:
+            datetime.fromisoformat(v)
+        except ValueError:
+            raise ValueError('Invalid date format. Use YYYY-MM-DD')
+        return v
+
+    @field_validator('time')
+    def validate_time(cls, v: str) -> str:
+        """Validate time format."""
+        try:
+            # Try both formats: HH:MM:SS and HH:MM
+            try:
+                datetime.strptime(v, '%H:%M:%S')
+            except ValueError:
+                datetime.strptime(v, '%H:%M')
+        except ValueError:
+            raise ValueError('Invalid time format. Use HH:MM:SS or HH:MM')
+        return v
+
+
+class UpdateEventWithFilesRequest(BaseModel):
+    """Request schema for updating events with file uploads (FormData)."""
+
+    title: Optional[str] = Field(None, min_length=1, max_length=150, description="Event title")
+    description: Optional[str] = Field(None, min_length=1, description="Event description")
+    date: Optional[str] = Field(None, description="ISO format date string (YYYY-MM-DD)")
+    time: Optional[str] = Field(None, description="ISO format time string (HH:MM:SS)")
+    venue: Optional[str] = Field(None, min_length=1, max_length=100, description="Event venue")
+    capacity: Optional[int] = Field(None, ge=0, description="Maximum capacity (0 for unlimited)")
+    max_participants: Optional[int] = Field(None, ge=0, description="Maximum participants (0 for unlimited)")
+    category_id: Optional[str] = Field(None, description="Event category UUID as string")
+
+    @field_validator('date')
+    def validate_date(cls, v: Optional[str]) -> Optional[str]:
+        """Validate date format."""
+        if v is None:
+            return v
+        try:
+            datetime.fromisoformat(v)
+        except ValueError:
+            raise ValueError('Invalid date format. Use YYYY-MM-DD')
+        return v
+
+    @field_validator('time')
+    def validate_time(cls, v: Optional[str]) -> Optional[str]:
+        """Validate time format."""
+        if v is None:
+            return v
+        try:
+            # Try both formats: HH:MM:SS and HH:MM
+            try:
+                datetime.strptime(v, '%H:%M:%S')
+            except ValueError:
+                datetime.strptime(v, '%H:%M')
+        except ValueError:
+            raise ValueError('Invalid time format. Use HH:MM:SS or HH:MM')
+        return v

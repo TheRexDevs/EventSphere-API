@@ -55,6 +55,6 @@ class Attendance(db.Model):
                 'id': str(self.student.id),
                 'username': self.student.username,
                 'email': self.student.email,
-                'full_name': self.student.profile.full_name if self.student.profile else None
+                'full_name': self.student.full_name if hasattr(self.student, 'full_name') else None
             } if self.student else None,
         }

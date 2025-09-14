@@ -20,6 +20,38 @@ All endpoints return JSON responses with consistent structure:
 }
 ```
 
+### 📎 Request Formats
+The API supports multiple request formats for different use cases:
+
+#### **JSON Requests** (Default)
+```http
+Content-Type: application/json
+```
+- Standard JSON request/response format
+- Used for most API operations
+- Suitable for text-based data
+
+#### **FormData Requests** (File Uploads)
+```http
+Content-Type: multipart/form-data
+```
+- Used for file uploads (images, documents)
+- Automatically detected by API endpoints
+- Supports both text fields and file uploads
+- Used by Event Management endpoints for image uploads
+
+**FormData Example:**
+```javascript
+const formData = new FormData();
+formData.append('title', 'Event Title');
+formData.append('image', imageFile);
+
+fetch('/api/v1/admin/events', {
+  method: 'POST',
+  body: formData
+});
+```
+
 ---
 
 # 🛡️ ADMIN ENDPOINTS
@@ -220,10 +252,13 @@ PATCH /api/v1/admin/users/{user_id}/address
 ## 🎪 Event Management
 
 ### Create Event
+
+#### 🎯 **Method 1: JSON Request (URLs Only)**
 ```http
 POST /api/v1/admin/events
+Content-Type: application/json
 ```
-- **Description**: Create a new event (Organizer/Admin only)
+- **Description**: Create a new event with image URLs (Organizer/Admin only)
 - **Auth Required**: Admin or Organizer token
 - **Request Body**:
 ```json
@@ -244,6 +279,85 @@ POST /api/v1/admin/events
   ]
 }
 ```
+
+#### 🎯 **Method 2: FormData Request (File Uploads)**
+```http
+POST /api/v1/admin/events
+Content-Type: multipart/form-data
+```
+- **Description**: Create a new event with actual image file uploads (Organizer/Admin only)
+- **Auth Required**: Admin or Organizer token
+- **Form Fields**:
+  - `title` (string, required): Event title
+  - `description` (string, required): Event description
+  - `date` (string, required): ISO format date (YYYY-MM-DD)
+  - `time` (string, required): ISO format time (HH:MM:SS)
+  - `venue` (string, required): Event venue
+  - `capacity` (number, required): Maximum capacity (0 for unlimited)
+  - `max_participants` (number, required): Maximum participants (0 for unlimited)
+  - `category_id` (string, optional): Event category UUID as string
+  - `featured_image` (file, optional): Featured image file (JPEG, PNG, etc.)
+  - `gallery_images[]` (file[], optional): Gallery image files (multiple files allowed)
+
+**Example FormData Request:**
+```javascript
+const formData = new FormData();
+formData.append('title', 'Tech Conference 2024');
+formData.append('description', 'Annual technology conference');
+formData.append('date', '2024-12-15');
+formData.append('time', '09:00:00');
+formData.append('venue', 'Convention Center');
+formData.append('capacity', '500');
+formData.append('max_participants', '450');
+formData.append('category_id', '550e8400-e29b-41d4-a716-446655440000');
+
+// Add featured image
+formData.append('featured_image', featuredImageFile);
+
+// Add gallery images
+galleryImageFiles.forEach((file, index) => {
+  formData.append('gallery_images[]', file);
+});
+
+fetch('/api/v1/admin/events', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ' + jwtToken
+  },
+  body: formData
+});
+```
+
+**FormData Response with Upload Status:**
+```json
+{
+  "status": "success",
+  "status_code": 201,
+  "message": "Event created successfully with image uploads. Images are processing in background.",
+  "data": {
+    "event": {
+      "id": "uuid",
+      "title": "Tech Conference 2024",
+      // ... other event fields
+      "upload_status": {
+        "featured_image": "uploading:event_uuid_featured_abc123.jpg",
+        "gallery_images": [
+          "uploading:event_uuid_gallery_0_def456.jpg",
+          "uploading:event_uuid_gallery_1_ghi789.jpg"
+        ],
+        "message": "Images are being uploaded to Cloudinary in the background"
+      }
+    }
+  }
+}
+```
+
+- **Upload Processing**: Images are uploaded to Cloudinary in background threads
+- **Status Tracking**: Response includes upload status for tracking progress
+- **Supported Formats**: JPEG, PNG, GIF, WebP
+- **File Size Limit**: 10MB per image (configurable)
+- **Background Processing**: API responds immediately while uploads continue
+
 - **Response**: Event object with generated ID including featured and gallery images
 - **Image Response Format**:
 ```json
@@ -297,17 +411,67 @@ GET /api/v1/admin/events/{event_id}
 - **Response**: Complete event object with organizer details, featured image, and gallery images (now fully functional)
 
 ### Update Event
+
+#### 🎯 **Method 1: JSON Request (URLs Only)**
 ```http
 PUT /api/v1/admin/events/{event_id}
+Content-Type: application/json
 ```
-- **Description**: Update an existing event (Organizer/Admin only)
+- **Description**: Update an existing event with image URLs (Organizer/Admin only)
 - **Auth Required**: Admin or Organizer token
 - **Path Parameters**:
   - `event_id` (string): Event UUID
 - **Request Body**: Same as create event (all fields optional). Includes optional image fields:
   - `featured_image_url`: URL of the featured image
   - `gallery_image_urls`: Array of gallery image URLs
+
+#### 🎯 **Method 2: FormData Request (File Uploads)**
+```http
+PUT /api/v1/admin/events/{event_id}
+Content-Type: multipart/form-data
+```
+- **Description**: Update an existing event with actual image file uploads (Organizer/Admin only)
+- **Auth Required**: Admin or Organizer token
+- **Path Parameters**:
+  - `event_id` (string): Event UUID
+- **Form Fields**: Same as create event FormData (all fields optional)
+  - `title` (string, optional): Event title
+  - `description` (string, optional): Event description
+  - `date` (string, optional): ISO format date (YYYY-MM-DD)
+  - `time` (string, optional): ISO format time (HH:MM:SS)
+  - `venue` (string, optional): Event venue
+  - `capacity` (number, optional): Maximum capacity
+  - `max_participants` (number, optional): Maximum participants
+  - `category_id` (string, optional): Event category UUID as string
+  - `featured_image` (file, optional): New featured image file
+  - `gallery_images[]` (file[], optional): New gallery image files
+
+**FormData Update Example:**
+```javascript
+const formData = new FormData();
+formData.append('title', 'Updated Tech Conference 2024');
+formData.append('venue', 'New Convention Center');
+
+// Add new featured image (replaces existing)
+formData.append('featured_image', newFeaturedImageFile);
+
+// Add additional gallery images (appends to existing)
+additionalGalleryFiles.forEach((file, index) => {
+  formData.append('gallery_images[]', file);
+});
+
+fetch(`/api/v1/admin/events/${eventId}`, {
+  method: 'PUT',
+  headers: {
+    'Authorization': 'Bearer ' + jwtToken
+  },
+  body: formData
+});
+```
+
 - **Response**: Updated event object with featured and gallery images (now fully functional)
+- **Upload Processing**: Same background processing as create event
+- **Note**: Only provided images will be uploaded; existing images remain unchanged unless replaced
 
 ### Delete Event
 ```http

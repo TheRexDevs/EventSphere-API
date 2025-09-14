@@ -12,9 +12,8 @@ Package: EventSphere
 from __future__ import annotations
 
 import uuid
-from typing import Dict, Any, List, Optional
 
-from flask import request, g
+from flask import request
 from pydantic import ValidationError
 
 from app.extensions import db
@@ -22,8 +21,9 @@ from app.models.event import Event
 from app.models.registration import Registration
 from app.models.attendance import Attendance
 from app.utils.helpers.http_response import success_response, error_response
-from app.utils.date_time import DateTimeUtils
 from app.schemas.attendance import MarkAttendanceRequest
+from app.utils.helpers.user import get_current_user
+from app.logging import log_error
 
 
 class AttendanceController:
@@ -37,7 +37,7 @@ class AttendanceController:
             payload = MarkAttendanceRequest.model_validate(request.get_json())
 
             # Get current user (admin/organizer)
-            current_user = g.user
+            current_user = get_current_user()
             if not current_user:
                 return error_response("Authentication required", 401)
 
@@ -54,8 +54,7 @@ class AttendanceController:
                 return error_response("Event not found or not approved", 404)
 
             # Check if user is organizer or admin
-            if (event.organizer_id != current_user.id and
-                current_user.role != 'admin'):
+            if (event.organizer_id != current_user.id):
                 return error_response("Insufficient permissions", 403)
 
             # Check if student is registered
@@ -98,6 +97,7 @@ class AttendanceController:
             return error_response("Invalid ID format", 400)
         except Exception as e:
             db.session.rollback()
+            log_error("Failed to mark attendance", e)
             return error_response(f"Failed to mark attendance: {str(e)}", 500)
 
     @staticmethod
@@ -105,7 +105,7 @@ class AttendanceController:
         """Get attendance list for an event (Admin/Organizer only)."""
         try:
             event_uuid = uuid.UUID(event_id)
-            current_user = g.user
+            current_user = get_current_user()
 
             if not current_user:
                 return error_response("Authentication required", 401)
@@ -116,8 +116,7 @@ class AttendanceController:
                 return error_response("Event not found", 404)
 
             # Check permissions
-            if (event.organizer_id != current_user.id and
-                current_user.role != 'admin'):
+            if (event.organizer_id != current_user.id):
                 return error_response("Insufficient permissions", 403)
 
             # Get attendance records
@@ -145,7 +144,7 @@ class AttendanceController:
                         'id': str(reg.student.id),
                         'username': reg.student.username,
                         'email': reg.student.email,
-                        'full_name': reg.student.profile.full_name if reg.student.profile else None
+                        'full_name': reg.student.full_name if hasattr(reg.student, 'full_name') else None
                     },
                     'registered_on': reg.registered_on.isoformat() if reg.registered_on else None,
                     'attended': attendance_record.attended if attendance_record else False,
@@ -177,4 +176,5 @@ class AttendanceController:
         except ValueError:
             return error_response("Invalid event ID format", 400)
         except Exception as e:
+            log_error("Failed to retrieve attendance", e)
             return error_response(f"Failed to retrieve attendance: {str(e)}", 500)
