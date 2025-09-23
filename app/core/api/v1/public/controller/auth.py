@@ -4,6 +4,7 @@ from flask import Response, request
 from flask_jwt_extended import create_access_token, decode_token, get_jwt, get_jwt_identity, jwt_required
 import uuid
 from email_validator import validate_email, EmailNotValidError
+from typing import Any
 
 from app.extensions import db
 from app.logging import log_error, log_event
@@ -437,7 +438,9 @@ class AuthController:
                 return error_response("invalid or expired token", 400)
 
             # Check if it's a password reset token
-            if decoded.get("type") != "password_reset":
+            sub: dict[str, Any] = decoded.get("sub") or {}
+            if sub.get("type") != "password_reset":
+                log_event(f"invalid token type", decoded.get('type'))
                 return error_response("invalid token type", 400)
 
             reset_token = decoded.get("reset_token")
@@ -449,7 +452,7 @@ class AuthController:
             reset_data = get_password_reset_token(token_hash)
 
             if not reset_data:
-                return error_response("token has expired or been used", 400)
+                return error_response("Reset link has expired or been used", 400)
 
             # Check attempts (max 3 reset attempts)
             if reset_data.attempts >= 3:
