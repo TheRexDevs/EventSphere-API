@@ -823,6 +823,73 @@ POST /api/v1/auth/check-username
 }
 ```
 
+### Request Password Reset
+```http
+POST /api/v1/auth/forgot-password
+```
+- **Description**: Request a password reset link to be sent to email address
+- **Auth Required**: None
+- **Rate Limited**: 3 requests per 15 minutes per email
+- **Request Body**:
+```json
+{
+  "email": "user@example.com"
+}
+```
+- **Response**: Always returns success (prevents email enumeration)
+```json
+{
+  "message": "If an account with this email exists, a password reset link has been sent."
+}
+```
+- **Security Notes**:
+  - Always returns success regardless of email existence
+  - Rate limited to prevent spam
+  - Reset link expires in 30 minutes
+
+### Validate Password Reset Token
+```http
+GET /api/v1/auth/pwd-reset-token?token=jwt_reset_token
+```
+- **Description**: Validate password reset token before showing reset form
+- **Auth Required**: None
+- **Query Parameters**:
+  - `token` (string, required): JWT password reset token from email
+- **Response**:
+```json
+{
+  "valid": true,
+  "expires_at": 1640995200
+}
+```
+- **Error Responses**:
+  - `400`: Invalid or expired token
+  - `429`: Too many validation attempts
+
+### Reset Password
+```http
+POST /api/v1/auth/reset-password
+```
+- **Description**: Reset user password using valid reset token
+- **Auth Required**: None
+- **Request Body**:
+```json
+{
+  "token": "jwt_reset_token_from_email",
+  "new_password": "new_secure_password123"
+}
+```
+- **Response**:
+```json
+{
+  "message": "Password has been reset successfully"
+}
+```
+- **Security Notes**:
+  - Token is invalidated after successful reset
+  - Max 3 reset attempts per token
+  - Password must be at least 6 characters
+
 ---
 
 ## 🎪 Event Discovery
@@ -1020,78 +1087,175 @@ DELETE /api/v1/feedback/{feedback_id}
 
 ---
 
-## 📁 Media Management
+## 📁 Admin Media Management
 
-### Upload Media
+### Upload Event Media
 ```http
-POST /api/v1/media/upload
+POST /api/v1/admin/events/{event_id}/media/upload
 ```
-- **Description**: Upload media file (image, document, etc.)
-- **Auth Required**: Bearer token
+- **Description**: Upload media files to an event (Admin/Organizer only)
+- **Auth Required**: Admin Bearer token
 - **Content-Type**: `multipart/form-data`
+- **Path Parameters**:
+  - `event_id` (string): Event UUID
 - **Form Data**:
-  - `file`: Media file
-  - `type` (optional): Media type (profile, event, certificate)
-  - `description` (optional): Media description
+  - `files`: Media files (multiple allowed)
+  - `custom_filename` (optional): Custom filename for uploaded files
+  - `optimize` (boolean, optional): Enable/disable image optimization (default: true)
 - **Response**:
 ```json
 {
-  "id": "uuid",
-  "filename": "image.jpg",
-  "url": "https://cloudinary.com/...",
-  "type": "profile",
-  "uploaded_at": "2024-01-15 10:30:00"
+  "status": "success",
+  "status_code": 201,
+  "message": "Successfully uploaded 2 file(s)",
+  "data": {
+    "uploaded": [
+      {
+        "id": "uuid",
+        "filename": "image.jpg",
+        "original_filename": "original.jpg",
+        "file_type": "image",
+        "file_size": 1024000,
+        "cloudinary_url": "https://cloudinary.com/...",
+        "is_featured": false,
+        "uploaded_at": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "errors": []
+  }
 }
 ```
 
-### Get Media Details
+### List Event Media
 ```http
-GET /api/v1/media/{media_id}
+GET /api/v1/admin/events/{event_id}/media?page=1&per_page=20
 ```
-- **Description**: Get media file details
-- **Auth Required**: Bearer token
+- **Description**: Get paginated list of media files within an event (Admin/Organizer only)
+- **Auth Required**: Admin Bearer token
 - **Path Parameters**:
+  - `event_id` (string): Event UUID
+- **Query Parameters**:
+  - `page` (integer): Page number (default: 1)
+  - `per_page` (integer): Items per page (max: 50, default: 20)
+  - `file_type` (string): Filter by file type (image, video, document)
+  - `is_featured` (boolean): Filter by featured media only
+  - `search` (string): Search in filenames
+  - `sort` (string): Sort order (created_at, filename, file_size) (default: created_at)
+  - `order` (string): Sort direction (asc, desc) (default: desc)
+- **Response**: Paginated list of event media files
+
+### Get Event Media Details
+```http
+GET /api/v1/admin/events/{event_id}/media/{media_id}
+```
+- **Description**: Get detailed information about a specific media file (Admin/Organizer only)
+- **Auth Required**: Admin Bearer token
+- **Path Parameters**:
+  - `event_id` (string): Event UUID
   - `media_id` (string): Media UUID
 - **Response**: Media metadata and access URLs
 
-### Update Media
+### Update Event Media
 ```http
-PUT /api/v1/media/{media_id}
+PUT /api/v1/admin/events/{event_id}/media/{media_id}
 ```
-- **Description**: Update media metadata
-- **Auth Required**: Bearer token (owner only)
+- **Description**: Update media metadata (Admin/Organizer only)
+- **Auth Required**: Admin Bearer token
 - **Path Parameters**:
+  - `event_id` (string): Event UUID
   - `media_id` (string): Media UUID
 - **Request Body**:
 ```json
 {
-  "description": "Updated description",
-  "type": "event"
+  "filename": "new_filename.jpg",
+  "is_featured": true
 }
 ```
 - **Response**: Updated media information
 
-### Delete Media
+### Delete Event Media
 ```http
-DELETE /api/v1/media/{media_id}
+DELETE /api/v1/admin/events/{event_id}/media/{media_id}
 ```
-- **Description**: Delete media file
-- **Auth Required**: Bearer token (owner only)
+- **Description**: Delete a media file (Admin/Organizer only)
+- **Auth Required**: Admin Bearer token
 - **Path Parameters**:
+  - `event_id` (string): Event UUID
   - `media_id` (string): Media UUID
 - **Response**: Deletion confirmation
 
-### List User Media
+### Bulk Delete Event Media
 ```http
-GET /api/v1/user/media?page=1&per_page=20&type=profile
+POST /api/v1/admin/events/{event_id}/media/bulk-delete
 ```
-- **Description**: Get current user's uploaded media
-- **Auth Required**: Bearer token
+- **Description**: Delete multiple media files in a single request (Admin/Organizer only)
+- **Auth Required**: Admin Bearer token
+- **Path Parameters**:
+  - `event_id` (string): Event UUID
+- **Request Body**:
+```json
+{
+  "media_ids": ["uuid1", "uuid2", "uuid3"]
+}
+```
+- **Response**:
+```json
+{
+  "status": "success",
+  "status_code": 200,
+  "message": "Successfully deleted 3 file(s)",
+  "data": {
+    "deleted_count": 3,
+    "failed_deletions": []
+  }
+}
+```
+
+### Get Event Media Statistics
+```http
+GET /api/v1/admin/events/{event_id}/media/stats?period=month
+```
+- **Description**: Get media statistics for an event (Admin/Organizer only)
+- **Auth Required**: Admin Bearer token
+- **Path Parameters**:
+  - `event_id` (string): Event UUID
+- **Query Parameters**:
+  - `period` (string): Time period for stats (day, week, month, year) (default: month)
+- **Response**:
+```json
+{
+  "status": "success",
+  "status_code": 200,
+  "message": "Media statistics retrieved successfully",
+  "data": {
+    "total_files": 25,
+    "total_size": 52428800,
+    "total_size_mb": 50.0,
+    "by_type": {
+      "image": 20,
+      "document": 3,
+      "video": 2
+    }
+  }
+}
+```
+
+## 📁 Public Media Access
+
+### Get Public Event Media
+```http
+GET /api/v1/events/public/{handle}/media?page=1&per_page=20
+```
+- **Description**: Get media files for a public event by handle (No authentication required)
+- **Auth Required**: None
+- **Path Parameters**:
+  - `handle` (string): Event handle
 - **Query Parameters**:
   - `page` (integer): Page number (default: 1)
-  - `per_page` (integer): Items per page (default: 20)
-  - `type` (string): Filter by media type
-- **Response**: Paginated list of user's media files
+  - `per_page` (integer): Items per page (max: 50, default: 20)
+  - `file_type` (string): Filter by file type (image, video, document)
+  - `is_featured` (boolean): Show only featured media
+- **Response**: Paginated list of public event media files
 
 ---
 

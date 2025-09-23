@@ -9,14 +9,17 @@ from app.extensions import db
 from app.logging import log_error, log_event
 from app.models import Role, AppUser, Profile, Address
 from app.schemas.auth import (
-    SignUpRequest, 
-    LoginRequest, 
+    SignUpRequest,
+    LoginRequest,
     VerifyEmailRequest,
     ResendCodeRequest,
     ValidateTokenRequest,
     RefreshTokenRequest,
     CheckEmailRequest,
     CheckUsernameRequest,
+    ForgotPasswordRequest,
+    ValidateResetTokenRequest,
+    ResetPasswordRequest,
 )
 from app.utils.emailing import email_service
 from app.utils.verification.registration import (
@@ -28,10 +31,22 @@ from app.utils.verification.registration import (
     hash_code,
     increment_attempts,
 )
+from app.utils.verification.password_reset import (
+    PasswordResetToken,
+    store_password_reset_token,
+    get_password_reset_token,
+    delete_password_reset_token,
+    generate_reset_token,
+    hash_token,
+    increment_token_attempts,
+    check_rate_limit,
+    increment_rate_limit,
+)
 from app.enums import RoleNames
 from app.utils.helpers.user import get_app_user
 from app.utils.helpers.http_response import success_response, error_response
 from app.utils.date_time import timedelta
+from config import Config
 
 
 class AuthController:
@@ -291,6 +306,184 @@ class AuthController:
             "username": username,
             "available": not exists
         })
+
+    @staticmethod
+    def forgot_password() -> Response:
+        """
+        Handle password reset request by validating email and sending reset link.
+
+        Always returns success to prevent email enumeration attacks.
+        """
+        payload = ForgotPasswordRequest.model_validate(request.get_json())
+        email = payload.email.lower()
+
+        try:
+            # Validate email format
+            email_info = validate_email(email, check_deliverability=False)
+            normalized_email = email_info.normalized
+        except EmailNotValidError:
+            return error_response("invalid email format", 400)
+
+        # Check rate limiting
+        is_limited, remaining = check_rate_limit(normalized_email, max_attempts=3, window_minutes=15)
+        if is_limited:
+            log_event(f"Password reset rate limit exceeded for {normalized_email}")
+            return success_response("If an account with this email exists, a password reset link has been sent.", 200)
+
+        # Check if user exists (but don't reveal this information)
+        user = AppUser.query.filter_by(email=normalized_email).first()
+
+        if user:
+            # Generate reset token and JWT
+            reset_token = generate_reset_token()
+            token_hash = hash_token(reset_token)
+
+            # Create JWT with expiration
+            jwt_token = create_access_token(
+                identity={"user_id": str(user.id), "type": "password_reset"},
+                expires_delta=timedelta(minutes=30),
+                additional_claims={"reset_token": reset_token}
+            )
+
+            # Store hashed token
+            reset_data = PasswordResetToken(
+                user_id=str(user.id),
+                email=normalized_email,
+                token_hash=token_hash
+            )
+            store_password_reset_token(token_hash, reset_data, ttl_minutes=30)
+
+            # Create reset link
+            reset_link = f"{Config.APP_DOMAIN}/reset-password?token={jwt_token}"
+
+            # Send email
+            email_service.send_password_reset(
+                normalized_email,
+                reset_link,
+                expires_minutes=30,
+                context={"firstname": user.profile.firstname if user.profile else "User"}
+            )
+
+            log_event(f"Password reset email sent to {normalized_email}", data={"user_id": str(user.id)})
+
+        # Increment rate limit counter
+        increment_rate_limit(normalized_email, window_minutes=15)
+
+        # Always return success regardless of whether email exists
+        return success_response("If an account with this email exists, a password reset link has been sent.", 200)
+
+    @staticmethod
+    def validate_reset_token() -> Response:
+        """
+        Validate a password reset token from query parameter.
+
+        Used by frontend to check if reset token is valid before showing reset form.
+        """
+        token = request.args.get('token')
+        if not token:
+            return error_response("token parameter is required", 400)
+
+        try:
+            # Decode JWT token
+            decoded = decode_token(token)
+            if not decoded:
+                return error_response("invalid or expired token", 400)
+
+            # Check if it's a password reset token
+            if decoded.get("type") != "password_reset":
+                return error_response("invalid token type", 400)
+
+            reset_token = decoded.get("reset_token")
+            if not reset_token:
+                return error_response("invalid token format", 400)
+
+            # Check if hashed token exists
+            token_hash = hash_token(reset_token)
+            reset_data = get_password_reset_token(token_hash)
+
+            if not reset_data:
+                return error_response("token has expired or been used", 400)
+
+            # Check attempts (max 5 validation attempts)
+            if reset_data.attempts >= 5:
+                delete_password_reset_token(token_hash)
+                return error_response("too many validation attempts", 429)
+
+            # Increment attempts
+            increment_token_attempts(token_hash)
+
+            return success_response("Token is valid", 200, {
+                "valid": True,
+                "expires_at": decoded.get("exp")
+            })
+
+        except Exception as e:
+            log_error("Token validation failed", e)
+            return error_response("invalid token", 400)
+
+    @staticmethod
+    def reset_password() -> Response:
+        """
+        Reset user password using valid reset token.
+        """
+        payload = ResetPasswordRequest.model_validate(request.get_json())
+        token = payload.token
+        new_password = payload.new_password
+
+        try:
+            # Decode JWT token
+            decoded = decode_token(token)
+            if not decoded:
+                return error_response("invalid or expired token", 400)
+
+            # Check if it's a password reset token
+            if decoded.get("type") != "password_reset":
+                return error_response("invalid token type", 400)
+
+            reset_token = decoded.get("reset_token")
+            if not reset_token:
+                return error_response("invalid token format", 400)
+
+            # Check if hashed token exists
+            token_hash = hash_token(reset_token)
+            reset_data = get_password_reset_token(token_hash)
+
+            if not reset_data:
+                return error_response("token has expired or been used", 400)
+
+            # Check attempts (max 3 reset attempts)
+            if reset_data.attempts >= 3:
+                delete_password_reset_token(token_hash)
+                return error_response("too many reset attempts", 429)
+
+            # Get user
+            try:
+                user_uuid = uuid.UUID(reset_data.user_id)
+            except (ValueError, TypeError):
+                delete_password_reset_token(token_hash)
+                return error_response("invalid user data", 400)
+
+            user = AppUser.query.filter_by(id=user_uuid).first()
+            if not user:
+                delete_password_reset_token(token_hash)
+                return error_response("user not found", 404)
+
+            # Update password
+            user.set_password(new_password)
+
+            # Save to database
+            db.session.commit()
+
+            # Delete the reset token to prevent reuse
+            delete_password_reset_token(token_hash)
+
+            log_event(f"Password reset successful for user {reset_data.user_id}")
+
+            return success_response("Password has been reset successfully", 200)
+
+        except Exception as e:
+            log_error("Password reset failed", e)
+            return error_response("password reset failed", 500)
 
 
     @staticmethod

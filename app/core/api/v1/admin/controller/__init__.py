@@ -9,6 +9,7 @@ from .attendance import AttendanceController
 from .certificate import CertificateController
 from .feedback import AdminFeedbackController
 from .user_management import UserManagementController
+from .media import AdminMediaController
 
 def get_admin_root() -> Dict[str, Any]:
     """Return metadata for the admin v1 API root."""

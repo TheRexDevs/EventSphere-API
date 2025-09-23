@@ -58,3 +58,21 @@ class CheckUsernameRequest(BaseModel):
 
     username: str = Field(min_length=1)
 
+
+class ForgotPasswordRequest(BaseModel):
+    """Schema for password reset request."""
+
+    email: EmailStr
+
+
+class ValidateResetTokenRequest(BaseModel):
+    """Schema for password reset token validation."""
+
+    token: str = Field(min_length=1)
+
+
+class ResetPasswordRequest(BaseModel):
+    """Schema for password reset."""
+
+    token: str = Field(min_length=1)
+    new_password: str = Field(min_length=6)

@@ -2,16 +2,19 @@ from __future__ import annotations
 
 from ..controller import AuthController
 from flask_pydantic_spec import Response
-from app.docs import spec, endpoint, SecurityScheme
+from app.docs import spec, endpoint, SecurityScheme, QueryParameter
 from app.schemas.common import ApiResponse
 from app.schemas.auth import (
-    VerifyEmailRequest, 
-    SignUpRequest, 
+    VerifyEmailRequest,
+    SignUpRequest,
     LoginRequest,
     ResendCodeRequest,
     ValidateTokenRequest,
     CheckEmailRequest,
     CheckUsernameRequest,
+    ForgotPasswordRequest,
+    ValidateResetTokenRequest,
+    ResetPasswordRequest,
 )
 
 def register_routes(bp):
@@ -114,3 +117,44 @@ def register_routes(bp):
     def check_username_availability():
         """Check if a username is already taken."""
         return AuthController.check_username_availability()
+
+
+    @bp.post("/auth/forgot-password")
+    @endpoint(
+        request_body=ForgotPasswordRequest,
+        tags=["Authentication"],
+        summary="Request Password Reset",
+        description="Request a password reset link to be sent to the provided email address. Always returns success to prevent email enumeration."
+    )
+    @spec.validate(resp=Response(HTTP_200=ApiResponse, HTTP_400=ApiResponse))
+    def forgot_password():
+        """Request a password reset."""
+        return AuthController.forgot_password()
+
+
+    @bp.get("/auth/pwd-reset-token")
+    @endpoint(
+        tags=["Authentication"],
+        summary="Validate Password Reset Token",
+        description="Validate a password reset token from query parameter. Used by frontend to check token validity before showing reset form.",
+        query_params=[
+            QueryParameter("token", "string", required=True, description="JWT password reset token")
+        ]
+    )
+    @spec.validate(resp=Response(HTTP_200=ApiResponse, HTTP_400=ApiResponse, HTTP_429=ApiResponse))
+    def validate_reset_token():
+        """Validate a password reset token."""
+        return AuthController.validate_reset_token()
+
+
+    @bp.post("/auth/reset-password")
+    @endpoint(
+        request_body=ResetPasswordRequest,
+        tags=["Authentication"],
+        summary="Reset Password",
+        description="Reset user password using a valid reset token. Token is invalidated after successful reset."
+    )
+    @spec.validate(resp=Response(HTTP_200=ApiResponse, HTTP_400=ApiResponse, HTTP_404=ApiResponse, HTTP_429=ApiResponse, HTTP_500=ApiResponse))
+    def reset_password():
+        """Reset user password."""
+        return AuthController.reset_password()

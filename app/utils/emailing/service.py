@@ -40,6 +40,11 @@ class EmailService:
         merged_context = {"code": code, "expires_minutes": expires_minutes, **(context or {})}
         self.send_html(to, "Your Verification Code", "mail/send-code.html", merged_context)
 
+    def send_password_reset(self, to: str, reset_link: str, *, expires_minutes: int = 30, context: Mapping[str, Any] | None = None) -> None:
+        """Send a password reset email with reset link."""
+        merged_context = {"reset_link": reset_link, "expires_minutes": expires_minutes, **(context or {})}
+        self.send_html(to, "Reset Your Password", "mail/password-reset.html", merged_context)
+
     def _send_async(self, message: Message) -> None:
         """Queue email send on a background thread."""
         # Capture the current app instance before the thread
