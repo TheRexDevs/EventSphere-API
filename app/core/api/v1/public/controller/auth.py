@@ -71,7 +71,7 @@ class AuthController:
             if username_exists:
                 return error_response('Username already taken', 409)
 
-        # Generate a short code; store only hashed code and password hash in cache
+        # Generate a short code; store only hashed code and password hash in cache  
         from app.utils.helpers.basics import generate_random_number
         code = str(generate_random_number(6))
         reg_id = generate_registration_id()

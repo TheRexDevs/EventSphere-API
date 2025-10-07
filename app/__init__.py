@@ -49,4 +49,5 @@ def create_app(config_name=Config.ENV, seed_db=Config.SEED_DB):
 
 if __name__ == "__main__":
     app = create_app()
+    
     app.run(debug=True)

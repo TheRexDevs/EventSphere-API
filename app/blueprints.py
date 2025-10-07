@@ -21,7 +21,7 @@ def register_blueprints(app: Flask) -> None:
     v1_admin_api = create_v1_admin_api_blueprint()
     v1_public_api = create_v1_public_api_blueprint()
     
-    # Attach JSON error handlers to all API scopes BEFORE registration
+    # Attach JSON error handlers to all API scopes BEFORE registration          
     attach_api_error_handlers(api_bp)
     attach_api_error_handlers(v1_api)
     attach_api_error_handlers(v1_admin_api)
