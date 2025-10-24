@@ -34,6 +34,7 @@ class Config:
     
     # Domains
     APP_DOMAIN = os.getenv("APP_DOMAIN") or "http://localhost:3000"
+    APP_DOMAIN_NAME = os.getenv("APP_DOMAIN") or "http://localhost:3000"
     API_DOMAIN_NAME = os.getenv("API_DOMAIN_NAME") or "http://localhost:5000"
     
     # Cloudinary configurations
